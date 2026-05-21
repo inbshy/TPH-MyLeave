@@ -1,57 +1,78 @@
-enum LeaveType { mc, el }
+import 'package:tph_myleave/core/utils/date_utils.dart';
+import 'package:tph_myleave/models/leave_type.dart';
 
 class LeaveRequest {
-  final int id;
+  final int? id;
   final DateTime dateStart;
   final DateTime dateEnd;
   final LeaveType leaveType;
   final int employeeID;
   final int totalLeave;
   final String approveBy;
-  final String status; // pending / approved / rejected
+  final String status;
+  final String employeeComment;
+  final String attachmentPath;
+  final String adminComment;
+  final String rejectedReason;
 
   LeaveRequest({
-    required this.id,
+    this.id,
     required this.dateStart,
     required this.dateEnd,
     required this.leaveType,
     required this.employeeID,
     required this.totalLeave,
     required this.approveBy,
-    this.status = "pending",
+    this.status = 'pending',
+    this.employeeComment = '',
+    this.attachmentPath = '',
+    this.adminComment = '',
+    this.rejectedReason = '',
   });
 
-  // ✅ Convert JSON → Object
   factory LeaveRequest.fromJson(Map<String, dynamic> json) {
     return LeaveRequest(
-      id: json['id'],
-      dateStart: DateTime.parse(json['date_start']),
-      dateEnd: DateTime.parse(json['date_end']),
-      leaveType:
-          json['leave_type'] == 'mc' ? LeaveType.mc : LeaveType.el,
-      employeeID: json['employeeID'],
-      totalLeave: json['totalLeave'],
-      approveBy: json['approveBy'] ?? "",
-      status: json['status'] ?? "pending",
+      id: json['id'] as int?,
+      dateStart: DateTime.parse(json['date_start'] as String),
+      dateEnd: DateTime.parse(json['date_end'] as String),
+      leaveType: LeaveType.fromStorage(json['leave_type'] as String?),
+      employeeID: json['employeeID'] as int,
+      totalLeave: json['totalLeave'] as int,
+      approveBy: json['approveBy'] as String? ?? '',
+      status: json['status'] as String? ?? 'pending',
+      employeeComment: json['employee_comment'] as String? ?? '',
+      attachmentPath: json['attachment_path'] as String? ?? '',
+      adminComment: json['admin_comment'] as String? ?? '',
+      rejectedReason: json['rejected_reason'] as String? ?? '',
     );
   }
 
-  // ✅ Convert Object → JSON
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
+      if (id != null) 'id': id,
       'date_start': dateStart.toIso8601String(),
       'date_end': dateEnd.toIso8601String(),
-      'leave_type': leaveType == LeaveType.mc ? 'mc' : 'el',
+      'leave_type': leaveType.storageValue,
       'employeeID': employeeID,
       'totalLeave': totalLeave,
       'approveBy': approveBy,
       'status': status,
+      'employee_comment': employeeComment,
+      'attachment_path': attachmentPath,
+      'admin_comment': adminComment,
+      'rejected_reason': rejectedReason,
     };
   }
 
-  // ✅ Auto calculate total leave
+  Map<String, dynamic> toInsertJson() {
+    final m = toJson();
+    m.remove('id');
+    return m;
+  }
+
   static int calculateTotalLeave(DateTime start, DateTime end) {
-    return end.difference(start).inDays + 1;
+    final s = DateTime(start.year, start.month, start.day);
+    final e = DateTime(end.year, end.month, end.day);
+    return AppDateUtils.inclusiveDays(s, e);
   }
 }

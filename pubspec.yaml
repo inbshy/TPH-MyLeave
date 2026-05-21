@@ -38,6 +38,10 @@ dependencies:
   supabase_flutter: ^2.12.0
   flutter_dotenv: ^6.0.0
   flutter_riverpod: ^2.5.1
+  go_router: ^14.6.2
+  intl: ^0.20.2
+  file_picker: ^8.1.7
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
@@ -66,7 +70,7 @@ flutter:
 
   assets:
     - assets/images/tph.png
-    - test.env
+    - .env
     
     
   # To add assets to your application, add an assets section, like this:

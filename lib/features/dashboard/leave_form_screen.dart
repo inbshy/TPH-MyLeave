@@ -1,12 +1,16 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:tph_myleave/models/leave_request.dart';
+import 'package:tph_myleave/models/leave_type.dart';
 
 class LeaveFormScreen extends StatefulWidget {
+  const LeaveFormScreen({super.key});
   @override
-  _LeaveFormScreenState createState() => _LeaveFormScreenState();
+  State<LeaveFormScreen> createState() => LeaveFormScreenState();
 }
 
-class _LeaveFormScreenState extends State<LeaveFormScreen> {
+class LeaveFormScreenState extends State<LeaveFormScreen> {
   LeaveType? selectedLeaveType;
   DateTime? startDate;
   DateTime? endDate;
@@ -22,7 +26,7 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
       approveBy: "",
     );
 
-    print(leave.toJson()); // test dulu
+    developer.log(leave.toJson().toString());
   }
 
   @override
@@ -36,7 +40,7 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
             items: LeaveType.values.map((type) {
               return DropdownMenuItem(
                 value: type,
-                child: Text(type == LeaveType.mc ? "MC" : "EL"),
+                child: Text(type.displayLabel),
               );
             }).toList(),
             onChanged: (value) {
@@ -54,3 +58,4 @@ class _LeaveFormScreenState extends State<LeaveFormScreen> {
     );
   }
 }
+
