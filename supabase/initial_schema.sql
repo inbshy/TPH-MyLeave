@@ -4,7 +4,7 @@
 -- How to use:
 --   1. Open Supabase Dashboard → SQL Editor → New query.
 --   2. Paste this entire file and run once on a new (empty) project.
---   3. Set SUPABASE_URL and SUPABASE_ANON_KEY in your app’s `test.env`.
+--   3. Set SUPABASE_URL and SUPABASE_ANON_KEY in your app’s `test.env.example`.
 --
 -- Re-run: drop dependent objects first (uncomment block at bottom), then run again.
 -- =============================================================================

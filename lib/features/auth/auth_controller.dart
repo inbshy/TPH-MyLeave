@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:tph_myleave/core/utils/network_error_message.dart';
 import 'package:tph_myleave/services/auth_service.dart';
 
 class AuthState {
@@ -102,7 +103,7 @@ class AuthController extends StateNotifier<AuthState> {
         user: _auth.currentUser,
         role: state.role,
         hasProfile: false,
-        error: 'Could not load profile: $e',
+        error: 'Could not load profile: ${networkErrorMessage(e)}',
         isLoading: false,
       );
     }
@@ -197,7 +198,7 @@ class AuthController extends StateNotifier<AuthState> {
       );
     } catch (e) {
       state = AuthState(
-        error: e.toString(),
+        error: networkErrorMessage(e),
         isLoading: false,
       );
     }
@@ -220,7 +221,7 @@ class AuthController extends StateNotifier<AuthState> {
       state = state.copyWith(error: e.message, isLoading: false);
     } catch (e) {
       state = state.copyWith(
-        error: e.toString(),
+        error: networkErrorMessage(e),
         isLoading: false,
       );
     }

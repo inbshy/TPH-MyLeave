@@ -626,6 +626,7 @@ class _EmployeeBalanceCardState extends ConsumerState<_EmployeeBalanceCard> {
   Future<void> _assignManager() async {
     final overview = widget.overview;
     final managers = await ref.read(managersProvider.future);
+    if (!mounted) return;
     String? managerId;
 
     final saved = await showDialog<bool>(

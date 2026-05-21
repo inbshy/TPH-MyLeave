@@ -4,11 +4,7 @@
 
 This project is a starting point for a Flutter application.
 
-Create a `test.env` file from `.env.example` before running the app:
-
-```bash
-cp .env.example test.env
-```
+Edit `test.env.example` in the project root and set your `SUPABASE_URL` and `SUPABASE_ANON_KEY` before running the app. Use placeholder values in git; keep real keys only on your machine and do not commit them.
 
 A few resources to get you started if this is your first Flutter project:
 
