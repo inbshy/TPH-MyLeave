@@ -30,23 +30,80 @@ class AuthService {
 
   Future<void> signOut() => _client.auth.signOut();
 
-  /// Returns the `users` row for the given auth user id, or null.
+  Future<void> resetPasswordForEmail(String email) =>
+      _client.auth.resetPasswordForEmail(email.trim());
+
+  /// Returns the `users` row for the given auth user id, or null if missing.
   Future<Map<String, dynamic>?> fetchUserProfile(String userId) async {
-    final row = await _client
+    final currentId = currentUser?.id;
+    if (currentId != null && currentId == userId) {
+      final fromRpc = await _fetchOwnProfileViaRpc();
+      if (fromRpc != null) return fromRpc;
+    }
+
+    final rows = await _client
         .from(AppConstants.tableUsers)
         .select()
         .eq('id', userId)
-        .maybeSingle();
-    return row;
+        .limit(1);
+
+    if (rows.isEmpty) return null;
+    return Map<String, dynamic>.from(rows.first);
   }
 
-  /// Creates `users` + `employees` rows. Requires an active auth session (RLS).
+  /// Uses DB function `get_my_profile()` (security definer) to avoid RLS recursion.
+  Future<Map<String, dynamic>?> _fetchOwnProfileViaRpc() async {
+    try {
+      final data = await _client.rpc('get_my_profile');
+      if (data == null) return null;
+      if (data is Map<String, dynamic>) return data;
+      if (data is Map) return Map<String, dynamic>.from(data);
+      return null;
+    } on PostgrestException catch (e) {
+      // Function not deployed yet — fall back to direct table read.
+      if (e.code == 'PGRST202' ||
+          e.message.contains('get_my_profile') ||
+          e.message.contains('Could not find the function')) {
+        return null;
+      }
+      rethrow;
+    }
+  }
+
+  /// Creates or updates `users` + `employees` rows. Requires an active auth session.
   Future<int> createEmployeeProfile({
     required String userId,
     required String name,
     required String email,
     required int companyId,
   }) async {
+    final existing = await fetchUserProfile(userId);
+
+    if (existing != null) {
+      await _client.from(AppConstants.tableUsers).update({
+        'name': name.trim(),
+        'email': email.trim(),
+        'company_id': companyId,
+      }).eq('id', userId);
+
+      final employeeId = existing['employee_id'] as int;
+      try {
+        await _client.from(AppConstants.tableEmployees).update({
+          'name': name.trim(),
+          'company_id': companyId,
+        }).eq('user_id', userId);
+      } catch (_) {
+        await _client.from(AppConstants.tableEmployees).insert({
+          'user_id': userId,
+          'employee_id': employeeId,
+          'company_id': companyId,
+          'name': name.trim(),
+          'role': AppConstants.roleEmployee,
+        });
+      }
+      return employeeId;
+    }
+
     final profileRow = await _client
         .from(AppConstants.tableUsers)
         .insert({
@@ -64,13 +121,15 @@ class AuthService {
     final rawId = profileRow['employee_id'];
     final employeeId = rawId is int ? rawId : (rawId as num).toInt();
 
-    await _client.from(AppConstants.tableEmployees).insert({
-      'user_id': userId,
-      'employee_id': employeeId,
-      'company_id': companyId,
-      'name': name.trim(),
-      'role': AppConstants.roleEmployee,
-    });
+    try {
+      await _client.from(AppConstants.tableEmployees).insert({
+        'user_id': userId,
+        'employee_id': employeeId,
+        'company_id': companyId,
+        'name': name.trim(),
+        'role': AppConstants.roleEmployee,
+      });
+    } catch (_) {}
 
     return employeeId;
   }

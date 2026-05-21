@@ -1,5 +1,8 @@
 class CompanyGroup {
-  const CompanyGroup({required this.id, required this.groupName});
+  const CompanyGroup({
+    required this.id,
+    required this.groupName,
+  });
 
   final int id;
   final String groupName;
@@ -10,6 +13,4 @@ class CompanyGroup {
       groupName: json['groupName'] as String,
     );
   }
-
-  Map<String, dynamic> toInsertJson(String name) => {'groupName': name.trim()};
 }

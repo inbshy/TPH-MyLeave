@@ -63,4 +63,34 @@ class CompanyService {
         .single();
     return Company.fromJson(Map<String, dynamic>.from(row));
   }
+
+  Future<CompanyGroup> updateCompanyGroup({
+    required int groupId,
+    required String groupName,
+  }) async {
+    final row = await _client
+        .from(AppConstants.tableCompanyGroups)
+        .update({'groupName': groupName.trim()})
+        .eq('group_id', groupId)
+        .select()
+        .single();
+    return CompanyGroup.fromJson(Map<String, dynamic>.from(row));
+  }
+
+  Future<Company> updateCompany({
+    required int companyId,
+    required String companyName,
+    required int groupId,
+  }) async {
+    final row = await _client
+        .from(AppConstants.tableCompany)
+        .update({
+          'companyName': companyName.trim(),
+          'group_id': groupId,
+        })
+        .eq('company_id', companyId)
+        .select('company_id, companyName, group_id, company_groups(group_id, groupName)')
+        .single();
+    return Company.fromJson(Map<String, dynamic>.from(row));
+  }
 }

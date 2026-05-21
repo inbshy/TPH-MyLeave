@@ -4,6 +4,12 @@
 
 This project is a starting point for a Flutter application.
 
+Create a `.env` file from `.env.example` before running the app:
+
+```bash
+cp .env.example .env
+```
+
 A few resources to get you started if this is your first Flutter project:
 
 - [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,13 +30,34 @@ class _ApplyLeavePageState extends ConsumerState<ApplyLeavePage> {
   DateTime? _start;
   DateTime? _end;
   bool _oneDay = false;
-  String? _attachmentFileName;
-  PlatformFile? _attachmentFile;
+  String? _pickedFileName;
+  Uint8List? _pickedBytes;
 
   @override
   void dispose() {
     _commentController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickAttachment() async {
+    final result = await FilePicker.platform.pickFiles(
+      withData: true,
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'],
+    );
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.single;
+    if (file.bytes == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not read file. Try another file.')),
+      );
+      return;
+    }
+    setState(() {
+      _pickedFileName = file.name;
+      _pickedBytes = file.bytes;
+    });
   }
 
   DateTime get _today => LeaveValidators.earliestLeaveDay();
@@ -141,16 +164,18 @@ class _ApplyLeavePageState extends ConsumerState<ApplyLeavePage> {
     }
 
     var attachmentPath = '';
-    if (_attachmentFile != null) {
+    if (_pickedBytes != null && _pickedFileName != null) {
       try {
         attachmentPath = await ref.read(storageServiceProvider).uploadLeaveAttachment(
               userId: user.id,
-              fileName: _attachmentFile!.name,
-              bytes: _attachmentFile!.bytes!,
+              bytes: _pickedBytes!,
+              fileName: _pickedFileName!,
             );
       } catch (e) {
         if (!mounted) return;
-        _showValidationError('Upload failed: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Upload failed: $e')),
+        );
         return;
       }
     }
@@ -363,46 +388,6 @@ class _ApplyLeavePageState extends ConsumerState<ApplyLeavePage> {
                         ? null
                         : () => _pickDate(start: false),
                   ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _commentController,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: 'Reason / comment',
-                      hintText: 'Describe your leave request',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: submit.isLoading
-                        ? null
-                        : () async {
-                            final result = await FilePicker.platform.pickFiles(
-                              withData: true,
-                            );
-                            if (result != null && result.files.isNotEmpty) {
-                              setState(() {
-                                _attachmentFile = result.files.first;
-                                _attachmentFileName = _attachmentFile!.name;
-                              });
-                            }
-                          },
-                    icon: const Icon(Icons.upload_file),
-                    label: Text(
-                      _attachmentFileName ?? 'Upload letter / document',
-                    ),
-                  ),
-                  if (_attachmentFileName != null)
-                    TextButton(
-                      onPressed: submit.isLoading
-                          ? null
-                          : () => setState(() {
-                                _attachmentFile = null;
-                                _attachmentFileName = null;
-                              }),
-                      child: const Text('Remove attachment'),
-                    ),
                   if (_leaveType != null && remaining != null) ...[
                     const SizedBox(height: 8),
                     Text(
@@ -413,6 +398,38 @@ class _ApplyLeavePageState extends ConsumerState<ApplyLeavePage> {
                           ),
                     ),
                   ],
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _commentController,
+                    maxLines: 4,
+                    enabled: !submit.isLoading,
+                    decoration: const InputDecoration(
+                      labelText: 'Comment / reason (optional)',
+                      hintText: 'Explain your leave request…',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: submit.isLoading ? null : _pickAttachment,
+                    icon: const Icon(Icons.upload_file),
+                    label: Text(
+                      _pickedFileName ?? 'Upload supporting letter (optional)',
+                    ),
+                  ),
+                  if (_pickedFileName != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: submit.isLoading
+                            ? null
+                            : () => setState(() {
+                                  _pickedFileName = null;
+                                  _pickedBytes = null;
+                                }),
+                        child: const Text('Remove attachment'),
+                      ),
+                    ),
                   if (!validation.isValid &&
                       _leaveType != null &&
                       (_start != null || _effectiveEnd != null)) ...[

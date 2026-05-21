@@ -1,6 +1,5 @@
 import 'package:tph_myleave/models/leave_request.dart';
 
-/// Leave request enriched with employee and company for admin review.
 class LeaveRequestDetail {
   const LeaveRequestDetail({
     required this.request,

@@ -80,6 +80,14 @@ class _DashboardDrawer extends ConsumerWidget {
               context.go('/dashboard');
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.notifications_outlined),
+            title: const Text('Notifications'),
+            onTap: () {
+              Navigator.pop(context);
+              context.push('/notifications');
+            },
+          ),
           if (role == AppConstants.roleEmployee) ...[
             ListTile(
               leading: const Icon(Icons.pie_chart_outline),
@@ -106,7 +114,7 @@ class _DashboardDrawer extends ConsumerWidget {
               },
             ),
           ],
-          if (role == AppConstants.roleManager)
+          if (role == AppConstants.roleManager) ...[
             ListTile(
               leading: const Icon(Icons.approval),
               title: const Text('Approvals'),
@@ -115,6 +123,15 @@ class _DashboardDrawer extends ConsumerWidget {
                 context.push('/approvals');
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month_outlined),
+              title: const Text('Team calendar'),
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/team-calendar');
+              },
+            ),
+          ],
           if (role == AppConstants.roleAdmin) ...[
             ListTile(
               leading: const Icon(Icons.approval),
@@ -126,18 +143,50 @@ class _DashboardDrawer extends ConsumerWidget {
             ),
             ListTile(
               leading: const Icon(Icons.business),
-              title: const Text('Companies & groups'),
+              title: const Text('Companies'),
               onTap: () {
                 Navigator.pop(context);
                 context.push('/company');
               },
             ),
             ListTile(
-              leading: const Icon(Icons.people_outline),
-              title: const Text('Staff leave balances'),
+              leading: const Icon(Icons.badge_outlined),
+              title: const Text('Employee directory'),
               onTap: () {
                 Navigator.pop(context);
-                context.push('/admin/staff-balances');
+                context.push('/admin/employee-directory');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.groups_outlined),
+              title: const Text('Employee balances'),
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/admin/employee-balances');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.analytics_outlined),
+              title: const Text('Leave usage report'),
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/admin/leave-usage');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('Approval history'),
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/admin/approval-history');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month_outlined),
+              title: const Text('Team calendar'),
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/team-calendar');
               },
             ),
           ],

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:tph_myleave/models/leave_balance.dart';
-import 'package:tph_myleave/models/leave_type.dart';
 
 /// Compact leave-balance strip for the employee dashboard.
 class LeaveBalanceSummary extends StatelessWidget {

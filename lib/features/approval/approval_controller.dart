@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:tph_myleave/providers/admin_service_provider.dart';
+import 'package:tph_myleave/providers/auth_provider.dart';
 import 'package:tph_myleave/providers/leave_provider.dart';
 import 'package:tph_myleave/services/leave_service.dart';
 
@@ -31,10 +33,24 @@ class ApprovalController extends StateNotifier<ApprovalActionState> {
 
   LeaveService get _leave => _ref.read(leaveServiceProvider);
 
+  Future<String?> _approverName() async {
+    final user = _ref.read(authProvider).user;
+    if (user == null) return null;
+    final profile =
+        await _ref.read(authServiceProvider).fetchUserProfile(user.id);
+    return profile?['name'] as String?;
+  }
+
   Future<void> approve(int leaveId, {String adminComment = ''}) async {
     state = state.copyWith(processingId: leaveId, clearError: true);
     try {
-      await _leave.approveLeave(leaveId, adminComment: adminComment);
+      final role = _ref.read(authProvider).role;
+      await _leave.approveLeave(
+        leaveId,
+        adminComment: adminComment,
+        approverName: await _approverName(),
+        approverRole: role,
+      );
       _invalidate(leaveId);
       state = const ApprovalActionState();
     } catch (e) {
@@ -53,6 +69,7 @@ class ApprovalController extends StateNotifier<ApprovalActionState> {
         leaveId,
         rejectedReason: rejectedReason,
         adminComment: adminComment,
+        approverName: await _approverName(),
       );
       _invalidate(leaveId);
       state = const ApprovalActionState();
@@ -66,6 +83,9 @@ class ApprovalController extends StateNotifier<ApprovalActionState> {
     _ref.invalidate(pendingLeaveDetailsProvider);
     _ref.invalidate(myLeaveRequestsProvider);
     _ref.invalidate(leaveDetailProvider(leaveId));
+    try {
+      _ref.invalidate(approvalHistoryProvider);
+    } catch (_) {}
   }
 }
 

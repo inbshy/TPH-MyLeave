@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tph_myleave/features/company/company_controller.dart';
 import 'package:tph_myleave/providers/auth_provider.dart';
-import 'package:tph_myleave/services/auth_service.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -32,6 +31,28 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   }
 
   Future<void> _register() async {
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your name')),
+      );
+      return;
+    }
+    if (email.isEmpty || !email.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email')),
+      );
+      return;
+    }
+    if (password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a password')),
+      );
+      return;
+    }
     if (_selectedCompanyId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a company')),
@@ -43,8 +64,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
     try {
       final response = await _supabase.auth.signUp(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
+        email: email,
+        password: password,
       );
 
       if (response.user == null) {
@@ -52,8 +73,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       }
 
       final userId = response.user!.id;
-      final email = _emailController.text.trim();
-      final name = _nameController.text.trim();
 
       // RLS only allows inserts when the user has an active session.
       if (response.session == null) {
@@ -61,10 +80,12 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Account created. Confirm your email, then sign in '
-              'to finish your profile.',
+              'Account created. Confirm your email, then sign in.\n\n'
+              'Your employee profile is only saved when sign-up returns an active '
+              'session. For testing, disable "Confirm email" under Supabase → '
+              'Authentication → Providers → Email.',
             ),
-            duration: Duration(seconds: 6),
+            duration: Duration(seconds: 8),
           ),
         );
         context.go('/login');

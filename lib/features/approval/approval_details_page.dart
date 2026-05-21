@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:tph_myleave/core/constants/app_constants.dart';
 import 'package:tph_myleave/core/utils/date_utils.dart';
 import 'package:tph_myleave/features/approval/approval_controller.dart';
+import 'package:tph_myleave/providers/auth_provider.dart';
 import 'package:tph_myleave/providers/leave_provider.dart';
 import 'package:tph_myleave/providers/storage_provider.dart';
+import 'package:tph_myleave/widgets/approval_audit_timeline.dart';
 import 'package:tph_myleave/widgets/loading_indicator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -104,7 +106,11 @@ class _ApprovalDetailsPageState extends ConsumerState<ApprovalDetailsPage> {
             return const Center(child: Text('Request not found.'));
           }
           final leave = detail.request;
-          final canAct = leave.status == AppConstants.leaveStatusPending;
+          final role = ref.watch(authProvider).role;
+          final canAct = AppConstants.isPendingLeaveStatus(leave.status);
+          final approveLabel = role == AppConstants.roleAdmin
+              ? 'Final approve'
+              : 'Approve (send to admin)';
 
           return ListView(
             padding: const EdgeInsets.all(24),
@@ -121,7 +127,10 @@ class _ApprovalDetailsPageState extends ConsumerState<ApprovalDetailsPage> {
               ),
               _InfoRow(label: 'Leave type', value: leave.leaveType.displayLabel),
               _InfoRow(label: 'Total days', value: '${leave.totalLeave}'),
-              _InfoRow(label: 'Status', value: leave.status),
+              _InfoRow(
+                label: 'Status',
+                value: AppConstants.pendingStatusLabel(leave.status),
+              ),
               const SizedBox(height: 16),
               Text(
                 'Employee comment',
@@ -159,6 +168,8 @@ class _ApprovalDetailsPageState extends ConsumerState<ApprovalDetailsPage> {
                 ),
                 Text(leave.adminComment),
               ],
+              const SizedBox(height: 16),
+              ApprovalAuditTimeline(leaveId: widget.leaveId),
               const SizedBox(height: 24),
               if (canAct) ...[
                 TextField(
@@ -194,7 +205,7 @@ class _ApprovalDetailsPageState extends ConsumerState<ApprovalDetailsPage> {
                             context.pop();
                           }
                         },
-                  child: const Text('Approve'),
+                  child: Text(approveLabel),
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton(

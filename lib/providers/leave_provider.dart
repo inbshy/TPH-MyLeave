@@ -8,7 +8,6 @@ import 'package:tph_myleave/services/leave_service.dart';
 
 final leaveServiceProvider = Provider<LeaveService>((ref) => LeaveService());
 
-/// Leave list for the current employee (empty if id cannot be resolved).
 final myLeaveRequestsProvider = FutureProvider<List<LeaveRequest>>((ref) async {
   final user = ref.watch(authProvider).user;
   if (user == null) return [];
@@ -19,21 +18,22 @@ final myLeaveRequestsProvider = FutureProvider<List<LeaveRequest>>((ref) async {
   return ref.watch(leaveServiceProvider).fetchLeavesForEmployee(eid);
 });
 
-/// Pending requests for managers / admins.
 final pendingLeaveRequestsProvider =
     FutureProvider<List<LeaveRequest>>((ref) async {
   final role = ref.watch(authProvider).role;
   if (!AppConstants.canApproveLeave(role)) {
     return [];
   }
-  return ref.watch(leaveServiceProvider).fetchPendingLeaves();
+  return ref.watch(leaveServiceProvider).fetchPendingLeaves(role: role);
 });
 
 final pendingLeaveDetailsProvider =
     FutureProvider<List<LeaveRequestDetail>>((ref) async {
   final role = ref.watch(authProvider).role;
-  if (!AppConstants.canApproveLeave(role)) return [];
-  return ref.watch(leaveServiceProvider).fetchPendingLeaveDetails();
+  if (!AppConstants.canApproveLeave(role)) {
+    return [];
+  }
+  return ref.watch(leaveServiceProvider).fetchPendingLeaveDetails(role: role);
 });
 
 final leaveDetailProvider =

@@ -23,8 +23,11 @@ class LeaveBalanceCalculator {
 
       for (final r in inYear.where((r) => r.leaveType == type)) {
         final status = r.status.toLowerCase();
-        if (status == AppConstants.leaveStatusRejected) continue;
-        if (status == AppConstants.leaveStatusPending) {
+        if (status == AppConstants.leaveStatusRejected ||
+            status == AppConstants.leaveStatusCancelled) {
+          continue;
+        }
+        if (AppConstants.isPendingLeaveStatus(status)) {
           pending += r.totalLeave;
         } else if (status == AppConstants.leaveStatusApproved) {
           used += r.totalLeave;

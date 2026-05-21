@@ -19,6 +19,7 @@ class LeaveCard extends StatelessWidget {
     final s = request.status.toLowerCase();
     if (s == 'approved') return Colors.green.shade700;
     if (s == 'rejected') return Colors.red.shade700;
+    if (s == 'cancelled') return Colors.grey.shade600;
     return Theme.of(context).colorScheme.tertiary;
   }
 

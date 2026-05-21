@@ -36,19 +36,70 @@ class LeaveBalancePage extends ConsumerWidget {
           await ref.read(myLeaveRequestsProvider.future);
         },
         child: balancesAsync.when(
-          data: (balances) => ListView(
-            padding: const EdgeInsets.all(24),
-            physics: const AlwaysScrollableScrollPhysics(),
-            children: [
-              Text(
-                'Entitlement and remaining days for $year. '
-                'Approved and pending requests count toward your balance.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 16),
-              ...balances.map((e) => _BalanceCard(entry: e)),
-            ],
-          ),
+          data: (balances) {
+            final capped = balances.where((b) => !b.isUnlimited).toList();
+            final totalEntitlement =
+                capped.fold<int>(0, (s, b) => s + (b.entitlement ?? 0));
+            final totalUsed =
+                capped.fold<int>(0, (s, b) => s + b.usedDays);
+            final totalPending =
+                capped.fold<int>(0, (s, b) => s + b.pendingDays);
+            final totalRemaining =
+                capped.fold<int>(0, (s, b) => s + (b.remainingDays ?? 0));
+
+            return ListView(
+              padding: const EdgeInsets.all(24),
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                Text(
+                  'Entitlement and remaining days for $year.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Summary (capped leave types)',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 12),
+                        _SummaryRow(
+                          label: 'Total entitlement',
+                          value: '$totalEntitlement days',
+                        ),
+                        _SummaryRow(
+                          label: 'Used (approved)',
+                          value: '$totalUsed days',
+                        ),
+                        _SummaryRow(
+                          label: 'Pending',
+                          value: '$totalPending days',
+                        ),
+                        const Divider(height: 20),
+                        _SummaryRow(
+                          label: 'Remaining',
+                          value: '$totalRemaining days',
+                          bold: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Breakdown by type',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                ...balances.map((e) => _BalanceCard(entry: e)),
+              ],
+            );
+          },
           loading: () => const AppLoadingIndicator(
             message: 'Calculating leave balance…',
           ),
@@ -129,6 +180,37 @@ class _BalanceCard extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.bold = false,
+  });
+
+  final String label;
+  final String value;
+  final bool bold;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: bold ? FontWeight.bold : FontWeight.w600,
+                ),
+          ),
+        ],
       ),
     );
   }

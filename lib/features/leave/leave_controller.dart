@@ -35,6 +35,48 @@ class LeaveFormController extends StateNotifier<LeaveSubmitState> {
 
   LeaveService get _leave => _ref.read(leaveServiceProvider);
 
+  Future<void> cancelPending(int leaveId) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      await _leave.cancelPendingLeave(leaveId);
+      _ref.invalidate(myLeaveRequestsProvider);
+      _ref.invalidate(pendingLeaveRequestsProvider);
+      state = const LeaveSubmitState();
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<void> updatePending(LeaveRequest request) async {
+    final balances =
+        _ref.read(myLeaveBalancesProvider).valueOrNull ?? const [];
+    final remaining = LeaveBalanceCalculator.entryForType(
+      balances,
+      request.leaveType,
+    )?.remainingDays;
+
+    final check = LeaveValidators.validate(
+      leaveType: request.leaveType,
+      start: request.dateStart,
+      end: request.dateEnd,
+      remainingDaysThisYear: remaining,
+    );
+    if (!check.isValid) {
+      state = state.copyWith(isLoading: false, error: check.message);
+      return;
+    }
+
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      await _leave.updatePendingLeave(request);
+      _ref.invalidate(myLeaveRequestsProvider);
+      _ref.invalidate(pendingLeaveRequestsProvider);
+      state = const LeaveSubmitState();
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
   Future<void> submit(LeaveRequest request) async {
     final balances =
         _ref.read(myLeaveBalancesProvider).valueOrNull ?? const [];

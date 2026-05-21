@@ -1,3 +1,4 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tph_myleave/core/config/supabase_config.dart';
 import 'package:tph_myleave/core/constants/app_constants.dart';
 import 'package:tph_myleave/models/employee.dart';
@@ -78,5 +79,87 @@ class EmployeeService {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Updates both [users] and [employees] rows for the given staff id.
+  Future<void> updateEmployeeCompany({
+    required int employeeId,
+    required int companyId,
+  }) async {
+    try {
+      await _client.rpc(
+        'admin_update_employee_company',
+        params: {
+          'p_employee_id': employeeId,
+          'p_company_id': companyId,
+        },
+      );
+      return;
+    } on PostgrestException catch (e) {
+      if (e.code != 'PGRST202' &&
+          !e.message.contains('admin_update_employee_company') &&
+          !e.message.contains('Could not find the function')) {
+        throw Exception(_assignmentErrorMessage(e));
+      }
+    }
+
+    try {
+      await _client
+          .from(AppConstants.tableUsers)
+          .update({'company_id': companyId})
+          .eq('employee_id', employeeId);
+
+      await _client
+          .from(AppConstants.tableEmployees)
+          .update({'company_id': companyId})
+          .eq('employee_id', employeeId);
+    } on PostgrestException catch (e) {
+      throw Exception(_assignmentErrorMessage(e));
+    }
+  }
+
+  Future<List<({String id, String name, String email})>> fetchManagers() async {
+    final response = await _client
+        .from(AppConstants.tableUsers)
+        .select('id, name, email')
+        .eq('role', AppConstants.roleManager)
+        .order('name');
+
+    return (response as List<dynamic>).map((row) {
+      final m = Map<String, dynamic>.from(row as Map);
+      return (
+        id: m['id'] as String,
+        name: m['name'] as String? ?? 'Manager',
+        email: m['email'] as String? ?? '',
+      );
+    }).toList();
+  }
+
+  Future<void> assignManager({
+    required int employeeId,
+    String? managerUserId,
+  }) async {
+    await _client.rpc('assign_employee_manager', params: {
+      'p_employee_id': employeeId,
+      'p_manager_user_id': managerUserId,
+    });
+  }
+
+  static String _assignmentErrorMessage(PostgrestException e) {
+    final text = '${e.message} ${e.details} ${e.hint}'.toLowerCase();
+    if (e.code == 'PGRST202' ||
+        text.contains('admin_update_employee_company') ||
+        text.contains('could not find the function')) {
+      return 'Database setup incomplete. In Supabase SQL Editor, run: '
+          'supabase/fix_admin_employee_assignment.sql';
+    }
+    if (text.contains('policy') ||
+        text.contains('row-level security') ||
+        text.contains('permission') ||
+        e.code == '42501') {
+      return 'Permission denied. In Supabase SQL Editor, run: '
+          'supabase/fix_admin_employee_assignment.sql';
+    }
+    return e.message;
   }
 }
