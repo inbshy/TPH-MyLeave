@@ -308,8 +308,11 @@ class _StaffTile extends ConsumerWidget {
                     }
                   } catch (e) {
                     if (context.mounted) {
+                      final msg = e is Exception
+                          ? e.toString().replaceFirst('Exception: ', '')
+                          : e.toString();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Update failed: $e')),
+                        SnackBar(content: Text('Update failed: $msg')),
                       );
                     }
                   }

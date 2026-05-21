@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tph_myleave/core/config/supabase_config.dart';
 import 'package:tph_myleave/core/constants/app_constants.dart';
+import 'package:tph_myleave/models/admin_leave_stats.dart';
 import 'package:tph_myleave/models/leave_request.dart';
 import 'package:tph_myleave/models/leave_request_detail.dart';
 import 'package:tph_myleave/services/company_service.dart';
@@ -56,6 +57,36 @@ class LeaveService {
     return data
         .map((json) => LeaveRequest.fromJson(Map<String, dynamic>.from(json as Map)))
         .toList();
+  }
+
+  Future<AdminLeaveStats> fetchAdminLeaveStats() async {
+    final response = await _client
+        .from(AppConstants.tableLeaveRequests)
+        .select('status');
+
+    var pendingApproval = 0;
+    var approved = 0;
+    var rejected = 0;
+
+    final rows = response as List<dynamic>;
+    for (final row in rows) {
+      final status =
+          (row as Map)['status']?.toString().toLowerCase() ?? '';
+      if (AppConstants.isPendingLeaveStatus(status)) {
+        pendingApproval++;
+      } else if (status == AppConstants.leaveStatusApproved) {
+        approved++;
+      } else if (status == AppConstants.leaveStatusRejected) {
+        rejected++;
+      }
+    }
+
+    return AdminLeaveStats(
+      pendingApproval: pendingApproval,
+      approved: approved,
+      rejected: rejected,
+      total: rows.length,
+    );
   }
 
   Future<LeaveRequest?> fetchLeaveById(int id) async {

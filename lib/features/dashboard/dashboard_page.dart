@@ -166,14 +166,6 @@ class _DashboardDrawer extends ConsumerWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.analytics_outlined),
-              title: const Text('Leave usage report'),
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/admin/leave-usage');
-              },
-            ),
-            ListTile(
               leading: const Icon(Icons.history),
               title: const Text('Approval history'),
               onTap: () {

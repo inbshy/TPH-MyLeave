@@ -1,4 +1,8 @@
--- RUN in Supabase SQL Editor — HR/admin features (directory, roles, multi-level approval, audit).
--- Requires: fix_login_profile.sql, fix_phase1_features.sql (can_view_leave).
-
-\i migrations/20260123120000_admin_hr_features.sql
+-- RUN in Supabase SQL Editor — HR/admin features (directory edits, roles, approval workflow).
+-- Requires: fix_login_profile.sql, fix_phase1_features.sql
+--
+-- For employee directory profile updates, run:
+--   supabase/fix_admin_employee_directory.sql
+--
+-- For the full HR migration (approval audit, multi-level status, etc.), paste and run:
+--   supabase/migrations/20260123120000_admin_hr_features.sql

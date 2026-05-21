@@ -8,10 +8,10 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    await dotenv.load(fileName: '.env');
+    await dotenv.load(fileName: 'test.env');
   } catch (error) {
     throw Exception(
-      'Unable to load .env file. Create a `.env` file in the project root '
+      'Unable to load test.env file. Create a `test.env` file in the project root '
       'with SUPABASE_URL and SUPABASE_ANON_KEY.',
     );
   }
@@ -21,7 +21,7 @@ Future<void> main() async {
 
   if (supabaseUrl == null || supabaseAnonKey == null) {
     throw Exception(
-      'Missing required environment variables. Ensure `.env` contains '
+      'Missing required environment variables. Ensure `test.env` contains '
       'SUPABASE_URL and SUPABASE_ANON_KEY.',
     );
   }

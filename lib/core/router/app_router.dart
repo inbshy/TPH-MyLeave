@@ -10,7 +10,6 @@ import 'package:tph_myleave/features/auth/register_page.dart';
 import 'package:tph_myleave/features/admin/admin_employee_balances_page.dart';
 import 'package:tph_myleave/features/admin/admin_employee_directory_page.dart';
 import 'package:tph_myleave/features/admin/admin_approval_history_page.dart';
-import 'package:tph_myleave/features/admin/admin_leave_usage_report_page.dart';
 import 'package:tph_myleave/features/company/company_page.dart';
 import 'package:tph_myleave/features/dashboard/dashboard_page.dart';
 import 'package:tph_myleave/features/leave/apply_leave_page.dart';
@@ -137,10 +136,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/admin/employee-directory',
         builder: (context, state) => const AdminEmployeeDirectoryPage(),
-      ),
-      GoRoute(
-        path: '/admin/leave-usage',
-        builder: (context, state) => const AdminLeaveUsageReportPage(),
       ),
       GoRoute(
         path: '/admin/approval-history',

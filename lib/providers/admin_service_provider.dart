@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tph_myleave/models/leave_approval_audit.dart';
 import 'package:tph_myleave/models/leave_request_detail.dart';
-import 'package:tph_myleave/models/leave_usage_summary.dart';
 import 'package:tph_myleave/models/staff_directory_entry.dart';
 import 'package:tph_myleave/services/admin_service.dart';
 
@@ -36,19 +35,6 @@ final approvalHistoryProvider =
 final approvalHistoryYearProvider =
     StateProvider<int>((ref) => DateTime.now().year);
 final approvalHistoryStatusProvider = StateProvider<String?>((ref) => null);
-
-final leaveUsageReportProvider =
-    FutureProvider<List<LeaveUsageSummary>>((ref) async {
-  final year = ref.watch(usageReportYearProvider);
-  final companyId = ref.watch(usageReportCompanyProvider);
-  return ref.watch(adminServiceProvider).fetchLeaveUsageReport(
-        year: year,
-        companyId: companyId,
-      );
-});
-
-final usageReportYearProvider = StateProvider<int>((ref) => DateTime.now().year);
-final usageReportCompanyProvider = StateProvider<int?>((ref) => null);
 
 final leaveAuditProvider =
     FutureProvider.family<List<LeaveApprovalAudit>, int>((ref, leaveId) {

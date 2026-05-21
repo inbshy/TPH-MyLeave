@@ -4,10 +4,10 @@
 
 This project is a starting point for a Flutter application.
 
-Create a `.env` file from `.env.example` before running the app:
+Create a `test.env` file from `.env.example` before running the app:
 
 ```bash
-cp .env.example .env
+cp .env.example test.env
 ```
 
 A few resources to get you started if this is your first Flutter project:

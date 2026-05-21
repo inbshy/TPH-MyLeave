@@ -1,8 +1,8 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tph_myleave/core/config/supabase_config.dart';
 import 'package:tph_myleave/core/constants/app_constants.dart';
 import 'package:tph_myleave/models/leave_approval_audit.dart';
 import 'package:tph_myleave/models/leave_request_detail.dart';
-import 'package:tph_myleave/models/leave_usage_summary.dart';
 import 'package:tph_myleave/models/staff_directory_entry.dart';
 import 'package:tph_myleave/services/leave_service.dart';
 
@@ -13,14 +13,17 @@ class AdminService {
   final _client = SupabaseConfig.client;
   final LeaveService _leave;
 
+  static const _directoryFixSql =
+      'supabase/fix_admin_employee_directory.sql';
+
   Future<List<StaffDirectoryEntry>> fetchStaffDirectory({
     String? roleFilter,
     int? companyId,
     String? search,
   }) async {
     var query = _client.from(AppConstants.tableUsers).select('''
-      id, employee_id, name, email, role, staff_type, company_id, manager_user_id,
-      company:company_id (companyName, company_groups (groupName))
+      id, employee_id, name, email, role, staff_type, company_id,
+      company (company_id, companyName, group_id, company_groups (group_id, groupName))
     ''');
 
     if (roleFilter != null && roleFilter.isNotEmpty) {
@@ -30,8 +33,8 @@ class AdminService {
       query = query.eq('company_id', companyId);
     }
     if (search != null && search.trim().isNotEmpty) {
-      final q = '%${search.trim()}%';
-      query = query.or('name.ilike.$q,email.ilike.$q');
+      final pattern = '%${search.trim()}%';
+      query = query.or('name.ilike.$pattern,email.ilike.$pattern');
     }
 
     final rows = await query.order('name');
@@ -44,10 +47,19 @@ class AdminService {
     required String userId,
     required String role,
   }) async {
-    await _client.rpc('admin_change_user_role', params: {
-      'p_user_id': userId,
-      'p_role': role,
-    });
+    try {
+      await _client.rpc('admin_change_user_role', params: {
+        'p_user_id': userId,
+        'p_role': role,
+      });
+      return;
+    } on PostgrestException catch (e) {
+      if (!_isMissingRpc(e, 'admin_change_user_role')) {
+        throw Exception(_directoryErrorMessage(e));
+      }
+    }
+
+    await _changeUserRoleDirect(userId: userId, role: role);
   }
 
   Future<void> updateUserProfile({
@@ -57,13 +69,112 @@ class AdminService {
     String staffType = 'permanent',
     int? companyId,
   }) async {
-    await _client.rpc('admin_update_user_profile', params: {
-      'p_user_id': userId,
-      'p_name': name,
-      'p_email': email,
-      'p_staff_type': staffType,
-      'p_company_id': companyId,
-    });
+    try {
+      await _client.rpc('admin_update_user_profile', params: {
+        'p_user_id': userId,
+        'p_name': name,
+        'p_email': email,
+        'p_staff_type': staffType,
+        'p_company_id': companyId,
+      });
+      return;
+    } on PostgrestException catch (e) {
+      if (!_isMissingRpc(e, 'admin_update_user_profile')) {
+        throw Exception(_directoryErrorMessage(e));
+      }
+    }
+
+    await _updateUserProfileDirect(
+      userId: userId,
+      name: name,
+      email: email,
+      staffType: staffType,
+      companyId: companyId,
+    );
+  }
+
+  Future<void> _changeUserRoleDirect({
+    required String userId,
+    required String role,
+  }) async {
+    try {
+      await _client
+          .from(AppConstants.tableUsers)
+          .update({'role': role})
+          .eq('id', userId);
+
+      await _client
+          .from(AppConstants.tableEmployees)
+          .update({'role': role})
+          .eq('user_id', userId);
+    } on PostgrestException catch (e) {
+      throw Exception(_directoryErrorMessage(e));
+    }
+  }
+
+  Future<void> _updateUserProfileDirect({
+    required String userId,
+    required String name,
+    required String email,
+    required String staffType,
+    int? companyId,
+  }) async {
+    try {
+      final userRow = await _client
+          .from(AppConstants.tableUsers)
+          .select('employee_id, role, company_id')
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (userRow == null) {
+        throw Exception('User not found.');
+      }
+
+      final employeeId = userRow['employee_id'] as int;
+      final role = userRow['role'] as String? ?? AppConstants.roleEmployee;
+      final resolvedCompanyId =
+          companyId ?? userRow['company_id'] as int?;
+
+      final userPayload = <String, dynamic>{
+        'name': name.trim(),
+        'email': email.trim(),
+        'staff_type': staffType,
+      };
+      if (companyId != null) {
+        userPayload['company_id'] = companyId;
+      }
+
+      await _client
+          .from(AppConstants.tableUsers)
+          .update(userPayload)
+          .eq('id', userId);
+
+      final employeePayload = <String, dynamic>{
+        'name': name.trim(),
+        'role': role,
+      };
+      if (resolvedCompanyId != null) {
+        employeePayload['company_id'] = resolvedCompanyId;
+      }
+
+      final updated = await _client
+          .from(AppConstants.tableEmployees)
+          .update(employeePayload)
+          .eq('user_id', userId)
+          .select('id');
+
+      if ((updated as List).isEmpty) {
+        await _client.from(AppConstants.tableEmployees).insert({
+          'user_id': userId,
+          'employee_id': employeeId,
+          'name': name.trim(),
+          'role': role,
+          if (resolvedCompanyId != null) 'company_id': resolvedCompanyId,
+        });
+      }
+    } on PostgrestException catch (e) {
+      throw Exception(_directoryErrorMessage(e));
+    }
   }
 
   Future<void> sendPasswordResetEmail(String email) async {
@@ -122,47 +233,32 @@ class AdminService {
     return details;
   }
 
-  Future<List<LeaveUsageSummary>> fetchLeaveUsageReport({
-    int? year,
-    int? companyId,
-  }) async {
-    final y = year ?? DateTime.now().year;
-    final details = await _leave.fetchLeaveDetailsForExport(
-      companyId: companyId,
-      year: y,
-    );
+  static bool _isMissingRpc(PostgrestException e, String name) {
+    final text = '${e.message} ${e.details} ${e.hint}'.toLowerCase();
+    return e.code == 'PGRST202' ||
+        text.contains(name) ||
+        text.contains('could not find the function');
+  }
 
-    final approved = details.where(
-      (d) => d.request.status == AppConstants.leaveStatusApproved,
-    );
-
-    final map = <String, LeaveUsageSummary>{};
-    for (final d in approved) {
-      final key = '${d.request.employeeID}|${d.request.leaveType.storageValue}';
-      final existing = map[key];
-      if (existing == null) {
-        map[key] = LeaveUsageSummary(
-          employeeId: d.request.employeeID,
-          employeeName: d.employeeName,
-          companyName: d.companyName,
-          leaveType: d.request.leaveType.displayLabel,
-          totalDays: d.request.totalLeave,
-          requestCount: 1,
-        );
-      } else {
-        map[key] = LeaveUsageSummary(
-          employeeId: existing.employeeId,
-          employeeName: existing.employeeName,
-          companyName: existing.companyName,
-          leaveType: existing.leaveType,
-          totalDays: existing.totalDays + d.request.totalLeave,
-          requestCount: existing.requestCount + 1,
-        );
-      }
+  static String _directoryErrorMessage(PostgrestException e) {
+    final text = '${e.message} ${e.details} ${e.hint}'.toLowerCase();
+    if (e.code == 'PGRST202' ||
+        text.contains('admin_update_user_profile') ||
+        text.contains('admin_change_user_role') ||
+        text.contains('could not find the function')) {
+      return 'Database setup incomplete. In Supabase SQL Editor, run: $_directoryFixSql';
     }
-
-    final list = map.values.toList()
-      ..sort((a, b) => a.employeeName.compareTo(b.employeeName));
-    return list;
+    if (text.contains('only admins') ||
+        text.contains('permission') ||
+        text.contains('row-level security') ||
+        text.contains('policy') ||
+        e.code == '42501') {
+      return 'Permission denied. Sign in as admin and run $_directoryFixSql in Supabase.';
+    }
+    final detail = e.details?.toString().trim();
+    if (detail != null && detail.isNotEmpty) {
+      return '${e.message} ($detail)';
+    }
+    return e.message;
   }
 }

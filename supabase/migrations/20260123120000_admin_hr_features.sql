@@ -195,6 +195,9 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_employee_id integer;
+  v_role text;
 begin
   if public.auth_user_role() is distinct from 'admin' then
     raise exception 'Only admins can edit profiles';
@@ -206,14 +209,28 @@ begin
     email = trim(p_email),
     staff_type = coalesce(nullif(trim(p_staff_type), ''), 'permanent'),
     company_id = coalesce(p_company_id, company_id)
-  where id = p_user_id;
+  where id = p_user_id
+  returning employee_id, role into v_employee_id, v_role;
 
   if not found then raise exception 'User not found'; end if;
 
   update public.employees
-  set name = trim(p_name),
-      company_id = coalesce(p_company_id, company_id)
+  set
+    name = trim(p_name),
+    company_id = coalesce(p_company_id, company_id),
+    role = coalesce(v_role, role)
   where user_id = p_user_id;
+
+  if not found then
+    insert into public.employees (user_id, employee_id, company_id, name, role)
+    values (
+      p_user_id,
+      v_employee_id,
+      coalesce(p_company_id, (select company_id from public.users where id = p_user_id)),
+      trim(p_name),
+      coalesce(v_role, 'employee')
+    );
+  end if;
 end;
 $$;
 

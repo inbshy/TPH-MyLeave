@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tph_myleave/core/constants/app_constants.dart';
+import 'package:tph_myleave/models/admin_leave_stats.dart';
 import 'package:tph_myleave/models/leave_request.dart';
 import 'package:tph_myleave/models/leave_request_detail.dart';
 import 'package:tph_myleave/providers/auth_provider.dart';
@@ -34,6 +35,14 @@ final pendingLeaveDetailsProvider =
     return [];
   }
   return ref.watch(leaveServiceProvider).fetchPendingLeaveDetails(role: role);
+});
+
+final adminLeaveStatsProvider = FutureProvider<AdminLeaveStats>((ref) async {
+  final role = ref.watch(authProvider).role;
+  if (role != AppConstants.roleAdmin) {
+    return AdminLeaveStats.empty;
+  }
+  return ref.watch(leaveServiceProvider).fetchAdminLeaveStats();
 });
 
 final leaveDetailProvider =
