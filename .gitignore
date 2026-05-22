@@ -4,9 +4,8 @@
 *.pyc
 *.swp
 .DS_Store
-test.env
-.env
-.env.*
+*.env
+*.env.*
 
 # IDE
 .idea/
