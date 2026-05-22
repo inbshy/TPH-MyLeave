@@ -71,7 +71,7 @@ flutter:
 
   assets:
     - assets/images/tph.png
-    - test.env.example
+    - test.env
     
     
   # To add assets to your application, add an assets section, like this:
