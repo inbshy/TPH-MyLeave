@@ -24,26 +24,32 @@ class AdminApprovalHistoryPage extends ConsumerWidget {
     final history = ref.watch(approvalHistoryProvider);
     final year = ref.watch(approvalHistoryYearProvider);
     final statusFilter = ref.watch(approvalHistoryStatusProvider);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Approval history')),
+      appBar: AppBar(
+        title: const Text('Approval History'),
+        elevation: 0,
+      ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
+          // Filters
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            color: colorScheme.surface,
             child: Row(
               children: [
                 Expanded(
                   child: DropdownButtonFormField<int>(
-                    initialValue: year,
-                    decoration: const InputDecoration(
+                    value: year,
+                    decoration: InputDecoration(
                       labelText: 'Year',
-                      border: OutlineInputBorder(),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
-                    items: List.generate(5, (i) => DateTime.now().year - i)
-                        .map(
-                          (y) => DropdownMenuItem(value: y, child: Text('$y')),
-                        )
+                    items: List.generate(6, (i) => DateTime.now().year - i)
+                        .map((y) => DropdownMenuItem(value: y, child: Text('$y')))
                         .toList(),
                     onChanged: (v) {
                       if (v != null) {
@@ -53,24 +59,19 @@ class AdminApprovalHistoryPage extends ConsumerWidget {
                     },
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Expanded(
                   child: DropdownButtonFormField<String?>(
-                    initialValue: statusFilter,
-                    decoration: const InputDecoration(
+                    value: statusFilter,
+                    decoration: InputDecoration(
                       labelText: 'Status',
-                      border: OutlineInputBorder(),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
                     items: const [
-                      DropdownMenuItem(value: null, child: Text('All processed')),
-                      DropdownMenuItem(
-                        value: AppConstants.leaveStatusApproved,
-                        child: Text('Approved'),
-                      ),
-                      DropdownMenuItem(
-                        value: AppConstants.leaveStatusRejected,
-                        child: Text('Rejected'),
-                      ),
+                      DropdownMenuItem(value: null, child: Text('All')),
+                      DropdownMenuItem(value: AppConstants.leaveStatusApproved, child: Text('Approved')),
+                      DropdownMenuItem(value: AppConstants.leaveStatusRejected, child: Text('Rejected')),
                     ],
                     onChanged: (v) {
                       ref.read(approvalHistoryStatusProvider.notifier).state = v;
@@ -81,42 +82,112 @@ class AdminApprovalHistoryPage extends ConsumerWidget {
               ],
             ),
           ),
+
+          // List
           Expanded(
             child: history.when(
               data: (list) {
                 if (list.isEmpty) {
-                  return const Center(child: Text('No records for this filter.'));
+                  return _buildEmptyState(context, year, statusFilter);
                 }
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                   itemCount: list.length,
-                  itemBuilder: (_, i) {
-                    final d = list[i];
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final d = list[index];
                     final r = d.request;
+                    final isApproved = r.status == AppConstants.leaveStatusApproved;
+
                     return Card(
-                      margin: const EdgeInsets.only(bottom: 10),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                       child: ExpansionTile(
-                        title: Text(d.employeeName),
-                        subtitle: Text(
-                          '${r.leaveType.displayLabel} · ${r.status}\n'
-                          '${AppDateUtils.formatDateRange(r.dateStart, r.dateEnd)}',
+                        tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        leading: CircleAvatar(
+                          backgroundColor: isApproved
+                              ? Colors.green.shade100
+                              : Colors.red.shade100,
+                          child: Icon(
+                            isApproved ? Icons.check_circle : Icons.cancel,
+                            color: isApproved ? Colors.green.shade700 : Colors.red.shade700,
+                          ),
+                        ),
+                        title: Text(
+                          d.employeeName,
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text(
+                              '${r.leaveType.displayLabel} · ${r.totalLeave} day(s)',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                            Text(
+                              AppDateUtils.formatDateRange(r.dateStart, r.dateEnd),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
                         ),
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                            child: ApprovalAuditTimeline(leaveId: r.id!),
-                          ),
+                          ApprovalAuditTimeline(leaveId: r.id!),
                         ],
                       ),
                     );
                   },
                 );
               },
-              loading: () => const AppLoadingIndicator(),
-              error: (e, _) => Center(child: Text('Error: $e')),
+              loading: () => const AppLoadingIndicator(message: 'Loading history...'),
+              error: (e, _) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(40),
+                  child: Text('Error: $e'),
+                ),
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context, int year, String? statusFilter) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final statusText = statusFilter == null ? 'processed' : statusFilter.toLowerCase();
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.history_toggle_off_rounded,
+              size: 80,
+              color: colorScheme.primary.withOpacity(0.3),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No Records Found',
+              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No $statusText leave records for $year.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

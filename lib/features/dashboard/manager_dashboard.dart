@@ -6,7 +6,6 @@ import 'package:tph_myleave/models/leave_request.dart';
 import 'package:tph_myleave/providers/leave_provider.dart';
 import 'package:tph_myleave/widgets/leave_card.dart';
 import 'package:tph_myleave/widgets/loading_indicator.dart';
-import 'package:tph_myleave/widgets/primary_button.dart';
 
 class ManagerDashboard extends ConsumerWidget {
   const ManagerDashboard({super.key});
@@ -14,100 +13,161 @@ class ManagerDashboard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pendingAsync = ref.watch(pendingLeaveRequestsProvider);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
-    return RefreshIndicator(
-      onRefresh: () => ref.refresh(pendingLeaveRequestsProvider.future),
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Manager overview',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Pending requests from your team appear here. Pull down to refresh.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 24),
-            pendingAsync.when(
-              data: (List<LeaveRequest> list) {
-                final preview = list.take(5).toList();
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DashboardStatTile(
-                            label: 'Awaiting review',
-                            value: '${list.length}',
-                            icon: Icons.pending_actions_outlined,
+    return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/approvals'),
+        icon: const Icon(Icons.pending_actions),
+        label: const Text('Review All'),
+        elevation: 6,
+      ),
+      body: RefreshIndicator(
+        onRefresh: () => ref.refresh(pendingLeaveRequestsProvider.future),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 52, 20, 100),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Text(
+                'Team Overview',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Manage your team\'s leave requests',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+
+              const SizedBox(height: 32),
+
+              // Stats Section
+              pendingAsync.when(
+                data: (List<LeaveRequest> list) {
+                  final pendingCount = list.length;
+                  final preview = list.take(5).toList();
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      DashboardStatTile(
+                        label: 'Awaiting Your Review',
+                        value: '$pendingCount',
+                        icon: Icons.pending_actions_rounded,
+                        color: Colors.orange.shade600,
+                      ),
+
+                      const SizedBox(height: 36),
+
+                      // Recent / Next Up
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Pending Requests',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
+                          if (pendingCount > 5)
+                            TextButton.icon(
+                              onPressed: () => context.push('/approvals'),
+                              icon: const Icon(Icons.arrow_forward, size: 18),
+                              label: const Text('See all'),
+                            ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      if (preview.isEmpty)
+                        _buildEmptyState(context)
+                      else
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: preview.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final request = preview[index];
+                            return LeaveCard(
+                              request: request,
+                              onTap: request.id == null
+                                  ? null
+                                  : () => context.push('/approvals/${request.id}'),
+                            );
+                          },
                         ),
+                    ],
+                  );
+                },
+                loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 80),
+                  child: AppLoadingIndicator(
+                    message: 'Loading team requests...',
+                  ),
+                ),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 60),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+                        const SizedBox(height: 12),
+                        Text('Failed to load requests', style: theme.textTheme.titleMedium),
+                        Text('$e', textAlign: TextAlign.center),
                       ],
                     ),
-                    const SizedBox(height: 28),
-                    Text(
-                      'Next up',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    if (preview.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        child: Text(
-                          'No pending leave requests. You are all caught up.',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      )
-                    else
-                      ...preview.map((r) {
-                        final id = r.id;
-                        return LeaveCard(
-                          request: r,
-                          margin: EdgeInsets.zero,
-                          onTap: id == null
-                              ? null
-                              : () => context.push('/approvals/$id'),
-                        );
-                      }),
-                  ],
-                );
-              },
-              loading: () => const Padding(
-                padding: EdgeInsets.symmetric(vertical: 32),
-                child: AppLoadingIndicator(
-                  message: 'Loading pending requests…',
+                  ),
                 ),
               ),
-              error: (e, _) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Text(
-                  'Could not load requests: $e',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            PrimaryButton(
-              label: 'Open approvals',
-              icon: Icons.approval,
-              onPressed: () => context.push('/approvals'),
-            ),
-            const SizedBox(height: 12),
-            PrimaryButton(
-              label: 'Team leave calendar',
-              icon: Icons.calendar_month_outlined,
-              onPressed: () => context.push('/team-calendar'),
-            ),
-          ],
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 60),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.check_circle_outline,
+            size: 72,
+            color: theme.colorScheme.primary.withOpacity(0.25),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'All caught up!',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'No pending leave requests from your team',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

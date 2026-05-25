@@ -25,10 +25,13 @@ class LeaveBalancePage extends ConsumerWidget {
 
     final year = ref.watch(leaveBalanceYearProvider);
     final balancesAsync = ref.watch(myLeaveBalancesProvider);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Leave balance'),
+        title: const Text('Leave Balance'),
+        elevation: 0,
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -38,83 +41,113 @@ class LeaveBalancePage extends ConsumerWidget {
         child: balancesAsync.when(
           data: (balances) {
             final capped = balances.where((b) => !b.isUnlimited).toList();
-            final totalEntitlement =
-                capped.fold<int>(0, (s, b) => s + (b.entitlement ?? 0));
-            final totalUsed =
-                capped.fold<int>(0, (s, b) => s + b.usedDays);
-            final totalPending =
-                capped.fold<int>(0, (s, b) => s + b.pendingDays);
-            final totalRemaining =
-                capped.fold<int>(0, (s, b) => s + (b.remainingDays ?? 0));
+            final totalEntitlement = capped.fold<int>(0, (s, b) => s + (b.entitlement ?? 0));
+            final totalUsed = capped.fold<int>(0, (s, b) => s + b.usedDays);
+            final totalPending = capped.fold<int>(0, (s, b) => s + b.pendingDays);
+            final totalRemaining = capped.fold<int>(0, (s, b) => s + (b.remainingDays ?? 0));
 
-            return ListView(
-              padding: const EdgeInsets.all(24),
+            return SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              children: [
-                Text(
-                  'Entitlement and remaining days for $year.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 16),
-                Card(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Summary (capped leave types)',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 12),
-                        _SummaryRow(
-                          label: 'Total entitlement',
-                          value: '$totalEntitlement days',
-                        ),
-                        _SummaryRow(
-                          label: 'Used (approved)',
-                          value: '$totalUsed days',
-                        ),
-                        _SummaryRow(
-                          label: 'Pending',
-                          value: '$totalPending days',
-                        ),
-                        const Divider(height: 20),
-                        _SummaryRow(
-                          label: 'Remaining',
-                          value: '$totalRemaining days',
-                          bold: true,
-                        ),
-                      ],
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Text(
+                    'Leave Balance $year',
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Breakdown by type',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                ...balances.map((e) => _BalanceCard(entry: e)),
-              ],
+                  const SizedBox(height: 6),
+                  Text(
+                    'Your entitlement and usage overview',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Overall Summary Card
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    color: colorScheme.primaryContainer.withAlpha(50),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.summarize_rounded, color: colorScheme.primary),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Overall Summary',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          _SummaryRow(label: 'Total Entitlement', value: '$totalEntitlement days'),
+                          _SummaryRow(label: 'Used (Approved)', value: '$totalUsed days'),
+                          _SummaryRow(label: 'Pending Approval', value: '$totalPending days'),
+                          const Divider(height: 24),
+                          _SummaryRow(
+                            label: 'Total Remaining',
+                            value: '$totalRemaining days',
+                            bold: true,
+                            valueColor: totalRemaining > 0 ? colorScheme.primary : colorScheme.error,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // Breakdown Section
+                  Text(
+                    'Breakdown by Leave Type',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  ...balances.map((entry) => _BalanceCard(entry: entry)),
+                ],
+              ),
             );
           },
-          loading: () => const AppLoadingIndicator(
-            message: 'Calculating leave balance…',
+          loading: () => const Padding(
+            padding: EdgeInsets.only(top: 100),
+            child: AppLoadingIndicator(message: 'Calculating leave balance…'),
           ),
-          error: (e, _) => ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            children: [
-              const SizedBox(height: 48),
-              Center(child: Text('Error: $e')),
-            ],
+          error: (e, _) => Padding(
+            padding: const EdgeInsets.all(40),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+                  const SizedBox(height: 16),
+                  Text('Failed to load balance', style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  Text('$e', textAlign: TextAlign.center),
+                ],
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 }
+
+// ==================== Helper Widgets ====================
 
 class _BalanceCard extends StatelessWidget {
   const _BalanceCard({required this.entry});
@@ -123,58 +156,62 @@ class _BalanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final cap = entry.entitlement;
-    final remaining = entry.remainingDays;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final remaining = entry.remainingDays ?? 0;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               entry.type.displayLabel,
-              style: Theme.of(context).textTheme.titleMedium,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
+
             if (entry.isUnlimited) ...[
-              _DetailRow(label: 'Entitlement', value: 'No limit'),
-              _DetailRow(label: 'Used (approved)', value: '${entry.usedDays}'),
-              _DetailRow(label: 'Pending', value: '${entry.pendingDays}'),
+              _DetailRow(label: 'Entitlement', value: 'Unlimited'),
+              _DetailRow(label: 'Used', value: '${entry.usedDays} days'),
+              _DetailRow(label: 'Pending', value: '${entry.pendingDays} days'),
             ] else ...[
               _DetailRow(
                 label: 'Entitlement',
-                value: '$cap day(s) / year',
+                value: '${entry.entitlement} days / year',
               ),
-              _DetailRow(
-                label: 'Used (approved)',
-                value: '${entry.usedDays} day(s)',
-              ),
-              _DetailRow(
-                label: 'Pending',
-                value: '${entry.pendingDays} day(s)',
-              ),
-              const Divider(height: 24),
-              Text(
-                'Remaining',
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '$remaining day(s)',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: remaining == 0 ? scheme.error : scheme.primary,
+              _DetailRow(label: 'Used', value: '${entry.usedDays} days'),
+              _DetailRow(label: 'Pending', value: '${entry.pendingDays} days'),
+
+              const SizedBox(height: 20),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Remaining', style: theme.textTheme.titleSmall),
+                  Text(
+                    '$remaining days',
+                    style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
+                      color: remaining == 0 ? colorScheme.error : colorScheme.primary,
                     ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
+
+              const SizedBox(height: 12),
               ClipRRect(
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(8),
                 child: LinearProgressIndicator(
                   value: entry.usageFraction ?? 0,
-                  minHeight: 8,
+                  minHeight: 10,
+                  backgroundColor: colorScheme.surfaceContainerHighest,
                 ),
               ),
             ],
@@ -190,24 +227,27 @@ class _SummaryRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.bold = false,
+    this.valueColor,
   });
 
   final String label;
   final String value;
   final bool bold;
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          Text(label, style: Theme.of(context).textTheme.bodyLarge),
           Text(
             value,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: bold ? FontWeight.bold : FontWeight.w600,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
+                  color: valueColor,
                 ),
           ),
         ],
@@ -225,7 +265,7 @@ class _DetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

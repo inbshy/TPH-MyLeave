@@ -16,7 +16,7 @@ class LeaveValidationResult {
 
 /// Rules for employee leave applications.
 class LeaveValidators {
-  LeaveValidators._();
+  LeaveValidators._(); 
 
   /// Earliest selectable leave day (today, local calendar).
   static DateTime earliestLeaveDay([DateTime? appliedOn]) {

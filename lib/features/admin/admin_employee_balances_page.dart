@@ -619,8 +619,7 @@ class _EmployeeBalanceCardState extends ConsumerState<_EmployeeBalanceCard> {
 
       if (mounted) setState(() => _busy = false);
 
-    }
-
+    } 
   }
 
   Future<void> _assignManager() async {

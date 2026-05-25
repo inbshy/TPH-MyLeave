@@ -127,7 +127,7 @@ class _AdminEmployeeDirectoryPageState
                           },
                         ),
                         loading: () => const LinearProgressIndicator(),
-                        error: (_,  ) => const SizedBox.shrink(),
+                        error: (_, __) => const SizedBox.shrink(),
                       ),
                     ),
                   ],

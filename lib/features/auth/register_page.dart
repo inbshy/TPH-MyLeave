@@ -74,7 +74,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
       final userId = response.user!.id;
 
-      // RLS only allows inserts when the user has an active session.
       if (response.session == null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -105,9 +104,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Registration successful. You can sign in now.',
-          ),
+          content: Text('Registration successful. You can sign in now.'),
         ),
       );
       context.go('/login');
@@ -116,8 +113,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       final message = e.toString();
       final hint = message.contains('row-level security') ||
               message.contains('employee_id_seq')
-          ? '\n\nTip: run supabase/migrations/20260115120000_employee_id_sequence.sql '
-              'in the SQL Editor, or disable “Confirm email” under Auth → Providers.'
+          ? '\n\nTip: run supabase/migrations/20260115120000_employee_id_sequence.sql in the SQL Editor, or disable “Confirm email” under Auth → Providers.'
           : '';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $message$hint')),
@@ -130,86 +126,195 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     final companies = ref.watch(companiesProvider);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Register employee')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: companies.when(
-          data: (list) {
-            if (list.isEmpty) {
-              return const Center(
-                child: Text(
-                  'No companies available. Run initial_schema.sql or insert a row in the company table.',
+      appBar: AppBar(
+        title: const Text('Create Account'),
+        elevation: 0,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header
+              Center(
+                child: Column(
+                  children: [
+                    Image.asset(
+                      'assets/images/logo.png',
+                      width: 80,
+                      height: 80,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Join MyLeave',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                    Text(
+                      'Create your employee account',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
-              );
-            }
-            return ListView(
-              children: [
-                TextField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Name',
-                    border: OutlineInputBorder(),
-                  ),
+              ),
+
+              const SizedBox(height: 40),
+
+              // Form Card
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Company',
-                    border: OutlineInputBorder(),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      isExpanded: true,
-                      hint: const Text('Select company'),
-                      value: _selectedCompanyId,
-                      items: list
-                          .map(
-                            (c) => DropdownMenuItem(
-                              value: c.id,
-                              child: Text(c.companyName),
+                child: Padding(
+                  padding: const EdgeInsets.all(28),
+                  child: companies.when(
+                    data: (list) {
+                      if (list.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            'No companies available.\nPlease contact your administrator.',
+                            textAlign: TextAlign.center,
+                          ),
+                        );
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Name
+                          TextFormField(
+                            controller: _nameController,
+                            enabled: !_submitting,
+                            decoration: InputDecoration(
+                              labelText: 'Full Name',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              prefixIcon: const Icon(Icons.person_outline),
                             ),
-                          )
-                          .toList(),
-                      onChanged: _submitting
-                          ? null
-                          : (v) => setState(() => _selectedCompanyId = v),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Email
+                          TextFormField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            enabled: !_submitting,
+                            decoration: InputDecoration(
+                              labelText: 'Email Address',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              prefixIcon: const Icon(Icons.email_outlined),
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Company Dropdown
+                          InputDecorator(
+                            decoration: InputDecoration(
+                              labelText: 'Company',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              prefixIcon: const Icon(Icons.business_outlined),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                isExpanded: true,
+                                hint: const Text('Select your company'),
+                                value: _selectedCompanyId,
+                                items: list
+                                    .map(
+                                      (c) => DropdownMenuItem(
+                                        value: c.id,
+                                        child: Text(c.companyName),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: _submitting
+                                    ? null
+                                    : (v) => setState(() => _selectedCompanyId = v),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Password
+                          TextFormField(
+                            controller: _passwordController,
+                            obscureText: true,
+                            enabled: !_submitting,
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              prefixIcon: const Icon(Icons.lock_outline),
+                            ),
+                          ),
+
+                          const SizedBox(height: 32),
+
+                          // Register Button
+                          FilledButton.icon(
+                            onPressed: _submitting ? null : _register,
+                            icon: _submitting
+                                ? const SizedBox.shrink()
+                                : const Icon(Icons.person_add_rounded),
+                            label: Text(
+                              _submitting ? 'Creating Account...' : 'Create Account',
+                            ),
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size(double.infinity, 54),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // Back to Login
+                          Center(
+                            child: TextButton(
+                              onPressed: _submitting ? null : () => context.go('/login'),
+                              child: const Text('Already have an account? Sign in'),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                    loading: () => const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(40),
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
+                    error: (e, _) => Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40),
+                        child: Text('Error: $e'),
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: _submitting ? null : _register,
-                  child: Text(_submitting ? 'Please wait…' : 'Register'),
-                ),
-                TextButton(
-                  onPressed: _submitting ? null : () => context.go('/login'),
-                  child: const Text('Back to login'),
-                ),
-              ],
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e')),
+              ),
+            ],
+          ),
         ),
       ),
     );

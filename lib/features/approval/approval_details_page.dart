@@ -50,13 +50,14 @@ class _ApprovalDetailsPageState extends ConsumerState<ApprovalDetailsPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Reject leave'),
+        title: const Text('Reject Leave Request'),
         content: TextField(
           controller: reasonController,
           maxLines: 3,
           decoration: const InputDecoration(
-            labelText: 'Rejection reason (required)',
+            labelText: 'Rejection Reason (required)',
             border: OutlineInputBorder(),
+            hintText: 'Please provide a clear reason...',
           ),
         ),
         actions: [
@@ -66,7 +67,7 @@ class _ApprovalDetailsPageState extends ConsumerState<ApprovalDetailsPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Reject'),
+            child: const Text('Reject Request'),
           ),
         ],
       ),
@@ -82,13 +83,14 @@ class _ApprovalDetailsPageState extends ConsumerState<ApprovalDetailsPage> {
     }
 
     await ref.read(approvalControllerProvider.notifier).reject(
-          widget.leaveId,
+          leaveId: widget.leaveId,
           rejectedReason: reason,
-          adminComment: _adminCommentController.text,
+          adminComment: _adminCommentController.text.trim(),
         );
+
     if (!mounted) return;
-    final err = ref.read(approvalControllerProvider).error;
-    if (err == null) {
+    final state = ref.read(approvalControllerProvider);
+    if (state.error == null) {
       context.pop();
     }
   }
@@ -97,133 +99,308 @@ class _ApprovalDetailsPageState extends ConsumerState<ApprovalDetailsPage> {
   Widget build(BuildContext context) {
     final async = ref.watch(leaveDetailProvider(widget.leaveId));
     final action = ref.watch(approvalControllerProvider);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final role = ref.watch(authProvider).role;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Review leave')),
+      appBar: AppBar(
+        title: const Text('Review Leave Request'),
+        elevation: 0,
+      ),
       body: async.when(
         data: (detail) {
           if (detail == null) {
             return const Center(child: Text('Request not found.'));
           }
+
           final leave = detail.request;
-          final role = ref.watch(authProvider).role;
           final canAct = AppConstants.isPendingLeaveStatus(leave.status);
           final approveLabel = role == AppConstants.roleAdmin
-              ? 'Final approve'
-              : 'Approve (send to admin)';
+              ? 'Approve'
+              : 'Approve (Send to Admin)';
 
-          return ListView(
-            padding: const EdgeInsets.all(24),
-            children: [
-              _InfoRow(label: 'Employee', value: detail.employeeName),
-              if (detail.employeeEmail != null)
-                _InfoRow(label: 'Email', value: detail.employeeEmail!),
-              _InfoRow(label: 'Company', value: detail.companyName),
-              if (detail.groupName != null)
-                _InfoRow(label: 'Group', value: detail.groupName!),
-              _InfoRow(
-                label: 'Dates',
-                value: AppDateUtils.formatDateRange(leave.dateStart, leave.dateEnd),
-              ),
-              _InfoRow(label: 'Leave type', value: leave.leaveType.displayLabel),
-              _InfoRow(label: 'Total days', value: '${leave.totalLeave}'),
-              _InfoRow(
-                label: 'Status',
-                value: AppConstants.pendingStatusLabel(leave.status),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Employee comment',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                leave.employeeComment.isEmpty
-                    ? '(none)'
-                    : leave.employeeComment,
-              ),
-              if (leave.attachmentPath.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () => _openAttachment(leave.attachmentPath),
-                  icon: const Icon(Icons.attach_file),
-                  label: const Text('View attachment'),
-                ),
-              ],
-              if (leave.rejectedReason.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(
-                  'Rejection reason',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                ),
-                Text(leave.rejectedReason),
-              ],
-              if (leave.adminComment.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(
-                  'Admin comment',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                Text(leave.adminComment),
-              ],
-              const SizedBox(height: 16),
-              ApprovalAuditTimeline(leaveId: widget.leaveId),
-              const SizedBox(height: 24),
-              if (canAct) ...[
-                TextField(
-                  controller: _adminCommentController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Admin comment (optional)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (action.error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      action.error!,
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header Card
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.person_outline, color: colorScheme.primary),
+                            const SizedBox(width: 12),
+                            Text(
+                              detail.employeeName,
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (detail.employeeEmail != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            detail.employeeEmail!,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        _InfoRow(label: 'Company', value: detail.companyName),
+                        if (detail.groupName != null)
+                          _InfoRow(label: 'Group', value: detail.groupName!),
+                      ],
                     ),
                   ),
-                FilledButton(
-                  onPressed: action.processingId == widget.leaveId
-                      ? null
-                      : () async {
-                          await ref
-                              .read(approvalControllerProvider.notifier)
-                              .approve(
-                                widget.leaveId,
-                                adminComment: _adminCommentController.text,
-                              );
-                          if (!context.mounted) return;
-                          if (ref.read(approvalControllerProvider).error ==
-                              null) {
-                            context.pop();
-                          }
-                        },
-                  child: Text(approveLabel),
                 ),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: action.processingId == widget.leaveId
-                      ? null
-                      : _reject,
-                  child: const Text('Reject with reason'),
+
+                const SizedBox(height: 20),
+
+                // Leave Details Card
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Leave Details',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _InfoRow(
+                          label: 'Dates',
+                          value: AppDateUtils.formatDateRange(leave.dateStart, leave.dateEnd),
+                        ),
+                        _InfoRow(label: 'Leave Type', value: leave.leaveType.displayLabel),
+                        _InfoRow(label: 'Total Days', value: '${leave.totalLeave}'),
+                        _InfoRow(
+                          label: 'Status',
+                          value: AppConstants.pendingStatusLabel(leave.status),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ] else
-                Text(
-                  'This request is already ${leave.status}.',
-                  style: Theme.of(context).textTheme.bodyLarge,
+
+                const SizedBox(height: 20),
+
+                // Employee Comment
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Employee Comment',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          leave.employeeComment.isEmpty
+                              ? '(No comment provided)'
+                              : leave.employeeComment,
+                          style: theme.textTheme.bodyLarge,
+                        ),
+                        if (leave.attachmentPath.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          OutlinedButton.icon(
+                            onPressed: () => _openAttachment(leave.attachmentPath),
+                            icon: const Icon(Icons.attach_file_rounded),
+                            label: const Text('View Supporting Document'),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(double.infinity, 48),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
-            ],
+
+                // Rejection / Admin Comment (if exists)
+                if (leave.rejectedReason.isNotEmpty || leave.adminComment.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (leave.rejectedReason.isNotEmpty) ...[
+                            Text(
+                              'Rejection Reason',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colorScheme.error,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(leave.rejectedReason),
+                          ],
+                          if (leave.adminComment.isNotEmpty) ...[
+                            if (leave.rejectedReason.isNotEmpty) const SizedBox(height: 16),
+                            Text(
+                              'Admin Comment',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(leave.adminComment),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 20),
+                ApprovalAuditTimeline(leaveId: widget.leaveId),
+
+                // Action Section
+                if (canAct) ...[
+                  const SizedBox(height: 32),
+                  Text(
+                    'Your Decision',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Admin Comment
+                  TextField(
+                    controller: _adminCommentController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: 'Comment (Optional)',
+                      hintText: 'Add any notes for the employee...',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Error Message
+                  if (action.error != null)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: colorScheme.errorContainer.withAlpha(30),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.error_outline, color: colorScheme.error),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              action.error!,
+                              style: TextStyle(color: colorScheme.error),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // Approve Button
+                  FilledButton.icon(
+                    onPressed: action.processingId == widget.leaveId
+                        ? null
+                        : () async {
+                            await ref
+                                .read(approvalControllerProvider.notifier)
+                                .approve(
+                                  widget.leaveId,
+                                  adminComment: _adminCommentController.text.trim(),
+                                );
+                            if (!mounted) return;
+                            if (ref.read(approvalControllerProvider).error == null) {
+                              context.pop();
+                            }
+                          },
+                    icon: action.processingId == widget.leaveId
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.check_circle_rounded),
+                    label: Text(approveLabel),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 54),
+                      backgroundColor: Colors.green.shade600,
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Reject Button
+                  OutlinedButton.icon(
+                    onPressed: action.processingId == widget.leaveId ? null : _reject,
+                    icon: const Icon(Icons.cancel_outlined),
+                    label: const Text('Reject with Reason'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 54),
+                      foregroundColor: colorScheme.error,
+                    ),
+                  ),
+                ] else ...[
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: colorScheme.primary),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'This request is already ${leave.status}.',
+                            style: theme.textTheme.bodyLarge,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
           );
         },
-        loading: () => const AppLoadingIndicator(),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        loading: () => const AppLoadingIndicator(message: 'Loading request...'),
+        error: (e, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(40),
+            child: Text('Error: $e'),
+          ),
+        ),
       ),
     );
   }
@@ -238,22 +415,24 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 110,
+            width: 100,
             child: Text(
               label,
-              style: Theme.of(context).textTheme.bodySmall,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w500,
                   ),
             ),
           ),

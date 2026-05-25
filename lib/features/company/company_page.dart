@@ -25,16 +25,6 @@ class _CompanyPageState extends ConsumerState<CompanyPage> {
     super.dispose();
   }
 
-  void _showError(Object e) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-  }
-
-  void _showSuccess(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
-
   Future<void> _refreshLists() async {
     ref.invalidate(companiesProvider);
     ref.invalidate(companyGroupsProvider);
@@ -47,14 +37,15 @@ class _CompanyPageState extends ConsumerState<CompanyPage> {
   Future<void> _addGroup() async {
     final name = _groupNameController.text.trim();
     if (name.isEmpty) return;
+
     setState(() => _busy = true);
     try {
       await ref.read(companyServiceProvider).createCompanyGroup(name);
       await _refreshLists();
       _groupNameController.clear();
-      _showSuccess('Group added.');
+      _showSnackBar('Group added successfully');
     } catch (e) {
-      _showError(e);
+      _showSnackBar('Error: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -63,6 +54,7 @@ class _CompanyPageState extends ConsumerState<CompanyPage> {
   Future<void> _addCompany() async {
     final name = _companyNameController.text.trim();
     if (name.isEmpty || _selectedGroupId == null) return;
+
     setState(() => _busy = true);
     try {
       await ref.read(companyServiceProvider).createCompany(
@@ -71,9 +63,9 @@ class _CompanyPageState extends ConsumerState<CompanyPage> {
           );
       await _refreshLists();
       _companyNameController.clear();
-      _showSuccess('Company added.');
+      _showSnackBar('Company added successfully');
     } catch (e) {
-      _showError(e);
+      _showSnackBar('Error: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -81,30 +73,26 @@ class _CompanyPageState extends ConsumerState<CompanyPage> {
 
   Future<void> _editGroup(CompanyGroup group) async {
     final controller = TextEditingController(text: group.groupName);
+
     final saved = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Edit group'),
+        title: const Text('Edit Group'),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Group name',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: 'Group Name',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
           autofocus: true,
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Save'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
         ],
       ),
     );
+
     if (saved != true || !mounted) {
       controller.dispose();
       return;
@@ -121,9 +109,9 @@ class _CompanyPageState extends ConsumerState<CompanyPage> {
             groupName: name,
           );
       await _refreshLists();
-      _showSuccess('Group updated.');
+      _showSnackBar('Group updated');
     } catch (e) {
-      _showError(e);
+      _showSnackBar('Error: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -137,41 +125,33 @@ class _CompanyPageState extends ConsumerState<CompanyPage> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Edit company'),
+          title: const Text('Edit Company'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Company name',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: 'Company Name',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               DropdownButtonFormField<int>(
-                initialValue: groupId,
-                decoration: const InputDecoration(
+                value: groupId,
+                decoration: InputDecoration(
                   labelText: 'Group',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 items: groups
-                    .map(
-                      (g) => DropdownMenuItem(
-                        value: g.id,
-                        child: Text(g.groupName),
-                      ),
-                    )
+                    .map((g) => DropdownMenuItem(value: g.id, child: Text(g.groupName)))
                     .toList(),
                 onChanged: (v) => setDialogState(() => groupId = v),
               ),
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
             FilledButton(
               onPressed: groupId == null ? null : () => Navigator.pop(ctx, true),
               child: const Text('Save'),
@@ -199,164 +179,155 @@ class _CompanyPageState extends ConsumerState<CompanyPage> {
             groupId: resolvedGroupId,
           );
       await _refreshLists();
-      _showSuccess('Company updated.');
+      _showSnackBar('Company updated');
     } catch (e) {
-      _showError(e);
+      _showSnackBar('Error: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  void _showSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     final companies = ref.watch(companiesProvider);
     final groups = ref.watch(companyGroupsProvider);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Companies & groups')),
+      appBar: AppBar(
+        title: const Text('Companies & Groups'),
+        elevation: 0,
+      ),
       body: RefreshIndicator(
         onRefresh: _refreshLists,
         child: ListView(
-          padding: const EdgeInsets.all(16),
-          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
           children: [
-            Text(
-              'Add group',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _groupNameController,
-              enabled: !_busy,
-              decoration: const InputDecoration(
-                labelText: 'Group name',
-                border: OutlineInputBorder(),
+            // ==================== ADD GROUP ====================
+            _SectionCard(
+              title: 'Add New Group',
+              icon: Icons.folder_outlined,
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _groupNameController,
+                    enabled: !_busy,
+                    decoration: InputDecoration(
+                      labelText: 'Group Name',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      prefixIcon: const Icon(Icons.folder_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: _busy ? null : _addGroup,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Group'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            FilledButton(
-              onPressed: _busy ? null : _addGroup,
-              child: const Text('Add group'),
-            ),
+
             const SizedBox(height: 24),
-            Text(
-              'All groups',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
+
+            // ==================== GROUPS LIST ====================
+            _SectionHeader(title: 'Groups', icon: Icons.folder_outlined),
+            const SizedBox(height: 12),
             groups.when(
               data: (list) {
                 if (list.isEmpty) {
-                  return const Text('No groups yet.');
+                  return _EmptyState(message: 'No groups yet. Create your first group above.');
                 }
                 return Column(
-                  children: list
-                      .map(
-                        (g) => Card(
-                          child: ListTile(
-                            leading: const Icon(Icons.folder_outlined),
-                            title: Text(g.groupName),
-                            trailing: IconButton(
-                              tooltip: 'Edit group',
-                              icon: const Icon(Icons.edit_outlined),
-                              onPressed: _busy ? null : () => _editGroup(g),
-                            ),
-                          ),
+                  children: list.map((g) => _GroupCard(
+                    group: g,
+                    onEdit: () => _editGroup(g),
+                    busy: _busy,
+                  )).toList(),
+                );
+              },
+              loading: () => const LinearProgressIndicator(),
+              error: (e, _) => Text('Error: $e'),
+            ),
+
+            const SizedBox(height: 32),
+
+            // ==================== ADD COMPANY ====================
+            _SectionCard(
+              title: 'Add New Company',
+              icon: Icons.business_outlined,
+              child: groups.when(
+                data: (list) {
+                  if (list.isEmpty) {
+                    return const Text('Please create a group first before adding a company.');
+                  }
+                  return Column(
+                    children: [
+                      DropdownButtonFormField<int>(
+                        value: _selectedGroupId,
+                        decoration: InputDecoration(
+                          labelText: 'Select Group',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          prefixIcon: const Icon(Icons.folder_outlined),
                         ),
-                      )
-                      .toList(),
-                );
-              },
-              loading: () => const LinearProgressIndicator(),
-              error: (e, _) => Text('Error: $e'),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Add company',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            groups.when(
-              data: (list) {
-                if (list.isEmpty) {
-                  return const Text('Create a group first.');
-                }
-                return Column(
-                  children: [
-                    DropdownButtonFormField<int>(
-                      key: ValueKey(_selectedGroupId),
-                      initialValue: _selectedGroupId,
-                      decoration: const InputDecoration(
-                        labelText: 'Group',
-                        border: OutlineInputBorder(),
+                        items: list
+                            .map((g) => DropdownMenuItem(value: g.id, child: Text(g.groupName)))
+                            .toList(),
+                        onChanged: _busy ? null : (v) => setState(() => _selectedGroupId = v),
                       ),
-                      items: list
-                          .map(
-                            (g) => DropdownMenuItem(
-                              value: g.id,
-                              child: Text(g.groupName),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: _busy
-                          ? null
-                          : (v) => setState(() => _selectedGroupId = v),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _companyNameController,
-                      enabled: !_busy,
-                      decoration: const InputDecoration(
-                        labelText: 'Company name',
-                        border: OutlineInputBorder(),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _companyNameController,
+                        enabled: !_busy,
+                        decoration: InputDecoration(
+                          labelText: 'Company Name',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          prefixIcon: const Icon(Icons.business_outlined),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    FilledButton(
-                      onPressed: _busy ? null : _addCompany,
-                      child: const Text('Add company'),
-                    ),
-                  ],
-                );
-              },
-              loading: () => const LinearProgressIndicator(),
-              error: (e, _) => Text('Error: $e'),
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: _busy ? null : _addCompany,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Company'),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 50),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+                loading: () => const LinearProgressIndicator(),
+                error: (e, _) => Text('Error: $e'),
+              ),
             ),
-            const SizedBox(height: 24),
-            Text(
-              'All companies',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
+
+            const SizedBox(height: 32),
+
+            // ==================== COMPANIES LIST ====================
+            _SectionHeader(title: 'All Companies', icon: Icons.business_outlined),
+            const SizedBox(height: 12),
             companies.when(
               data: (list) {
                 final groupList = groups.valueOrNull ?? [];
                 if (list.isEmpty) {
-                  return const Text('No companies yet.');
+                  return _EmptyState(message: 'No companies yet.');
                 }
                 return Column(
-                  children: list
-                      .map(
-                        (c) => Card(
-                          child: ListTile(
-                            leading: const Icon(Icons.business),
-                            title: Text(c.companyName),
-                            subtitle: Text(
-                              c.groupName != null
-                                  ? 'Group: ${c.groupName}'
-                                  : 'Group ID: ${c.groupId ?? '-'}',
-                            ),
-                            trailing: IconButton(
-                              tooltip: 'Edit company',
-                              icon: const Icon(Icons.edit_outlined),
-                              onPressed: groupList.isEmpty || _busy
-                                  ? null
-                                  : () => _editCompany(c, groupList),
-                            ),
-                          ),
-                        ),
-                      )
-                      .toList(),
+                  children: list.map((c) => _CompanyCard(
+                    company: c,
+                    onEdit: () => _editCompany(c, groupList),
+                    busy: _busy || groupList.isEmpty,
+                  )).toList(),
                 );
               },
               loading: () => const AppLoadingIndicator(),
@@ -364,6 +335,160 @@ class _CompanyPageState extends ConsumerState<CompanyPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ==================== HELPER WIDGETS ====================
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, required this.icon});
+
+  final String title;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({
+    required this.title,
+    required this.icon,
+    required this.child,
+  });
+
+  final String title;
+  final IconData icon;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 10),
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GroupCard extends StatelessWidget {
+  const _GroupCard({
+    required this.group,
+    required this.onEdit,
+    required this.busy,
+  });
+
+  final CompanyGroup group;
+  final VoidCallback onEdit;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        leading: const Icon(Icons.folder_outlined),
+        title: Text(group.groupName, style: const TextStyle(fontWeight: FontWeight.w600)),
+        trailing: IconButton(
+          icon: const Icon(Icons.edit_outlined),
+          onPressed: busy ? null : onEdit,
+        ),
+      ),
+    );
+  }
+}
+
+class _CompanyCard extends StatelessWidget {
+  const _CompanyCard({
+    required this.company,
+    required this.onEdit,
+    required this.busy,
+  });
+
+  final Company company;
+  final VoidCallback onEdit;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        leading: const Icon(Icons.business),
+        title: Text(company.companyName, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: company.groupName != null
+            ? Text('Group: ${company.groupName}')
+            : null,
+        trailing: IconButton(
+          icon: const Icon(Icons.edit_outlined),
+          onPressed: busy ? null : onEdit,
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 16),
+          Expanded(child: Text(message)),
+        ],
       ),
     );
   }

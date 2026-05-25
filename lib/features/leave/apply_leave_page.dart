@@ -39,6 +39,7 @@ class _ApplyLeavePageState extends ConsumerState<ApplyLeavePage> {
     super.dispose();
   }
 
+  // ==================== All your original methods (unchanged) ====================
   Future<void> _pickAttachment() async {
     final result = await FilePicker.platform.pickFiles(
       withData: true,
@@ -61,9 +62,7 @@ class _ApplyLeavePageState extends ConsumerState<ApplyLeavePage> {
   }
 
   DateTime get _today => LeaveValidators.earliestLeaveDay();
-
   DateTime get _maxDate => LeaveValidators.latestLeaveDay();
-
   DateTime? get _effectiveEnd => _oneDay ? _start : _end;
 
   int? get _totalDays =>
@@ -208,6 +207,7 @@ class _ApplyLeavePageState extends ConsumerState<ApplyLeavePage> {
     context.pop();
   }
 
+  // ==================== Improved UI ====================
   @override
   Widget build(BuildContext context) {
     final role = ref.watch(authProvider).role;
@@ -230,262 +230,289 @@ class _ApplyLeavePageState extends ConsumerState<ApplyLeavePage> {
         _totalDays != null &&
         validation.isValid;
 
-    final errorColor = Theme.of(context).colorScheme.error;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Apply for leave')),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Text(
-            'Leave request preview',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 12),
-          Card(
-            elevation: 0,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.event_note_outlined,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _leaveType?.displayLabel ?? 'Select leave type',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 8,
-                    children: [
-                      Chip(
-                        label: Text(
-                          _start == null || _effectiveEnd == null
-                              ? 'Pick dates'
-                              : AppDateUtils.formatDateRange(
-                                  _start!,
-                                  _effectiveEnd!,
-                                ),
-                        ),
-                      ),
-                      Chip(
-                        label: Text(
-                          _totalDays == null
-                              ? 'Total: -'
-                              : 'Total: $_totalDays day(s)',
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'After submitting, your request will be sent to an approver.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
+      appBar: AppBar(
+        title: const Text('Apply for Leave'),
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Text(
+              'New Leave Request',
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w600,
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Details',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Rules: dates cannot be before today; end must be on or after start. '
-            '${LeaveType.rulesSummary()}.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 12),
-          Card(
-            elevation: 0,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Leave type',
-                      border: OutlineInputBorder(),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<LeaveType>(
-                        isExpanded: true,
-                        value: _leaveType,
-                        hint: const Text('Select type'),
-                        items: LeaveType.values
-                            .map(
-                              (t) => DropdownMenuItem(
-                                value: t,
-                                child: Text(t.displayLabel),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: submit.isLoading
-                            ? null
-                            : (v) => setState(() => _leaveType = v),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('One-day leave'),
-                    subtitle: Text(
-                      _start == null
-                          ? 'Select a start date first'
-                          : 'End date will match the start date',
-                    ),
-                    value: _oneDay,
-                    onChanged: submit.isLoading
-                        ? null
-                        : (v) {
-                            setState(() {
-                              _oneDay = v;
-                              if (_oneDay && _start != null) {
-                                _end = _start;
-                              }
-                              if (!_oneDay && _end == null && _start != null) {
-                                _end = _start;
-                              }
-                            });
-                          },
-                  ),
-                  const SizedBox(height: 8),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      _start == null
-                          ? 'Start date'
-                          : AppDateUtils.formatDate(_start!),
-                    ),
-                    subtitle: const Text('Cannot be before today'),
-                    trailing: const Icon(Icons.calendar_today),
-                    onTap: submit.isLoading ? null : () => _pickDate(start: true),
-                  ),
-                  ListTile(
-                    enabled: !_oneDay,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      _effectiveEnd == null
-                          ? 'End date'
-                          : AppDateUtils.formatDate(_effectiveEnd!),
-                    ),
-                    subtitle: const Text('Must be on or after start date'),
-                    trailing: const Icon(Icons.calendar_today),
-                    onTap: (submit.isLoading || _oneDay)
-                        ? null
-                        : () => _pickDate(start: false),
-                  ),
-                  if (_leaveType != null && remaining != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      'Remaining this year: $remaining day(s)',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.primary,
+            const SizedBox(height: 6),
+            Text(
+              'Please fill in the details carefully',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+
+            const SizedBox(height: 32),
+
+            // Preview Card
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.visibility_outlined, color: colorScheme.primary),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Request Preview',
+                          style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
+                        ),
+                      ],
                     ),
-                  ],
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _commentController,
-                    maxLines: 4,
-                    enabled: !submit.isLoading,
-                    decoration: const InputDecoration(
-                      labelText: 'Comment / reason (optional)',
-                      hintText: 'Explain your leave request…',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: submit.isLoading ? null : _pickAttachment,
-                    icon: const Icon(Icons.upload_file),
-                    label: Text(
-                      _pickedFileName ?? 'Upload supporting letter (optional)',
-                    ),
-                  ),
-                  if (_pickedFileName != null)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        onPressed: submit.isLoading
-                            ? null
-                            : () => setState(() {
-                                  _pickedFileName = null;
-                                  _pickedBytes = null;
-                                }),
-                        child: const Text('Remove attachment'),
+                    const SizedBox(height: 16),
+                    if (_leaveType != null)
+                      Row(
+                        children: [
+                          Icon(Icons.event_note, color: colorScheme.primary),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _leaveType!.displayLabel,
+                              style: theme.textTheme.titleMedium,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  if (!validation.isValid &&
-                      _leaveType != null &&
-                      (_start != null || _effectiveEnd != null)) ...[
                     const SizedBox(height: 12),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 8,
                       children: [
-                        Icon(Icons.error_outline, size: 20, color: errorColor),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            validation.message!,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: errorColor),
+                        Chip(
+                          avatar: const Icon(Icons.date_range, size: 18),
+                          label: Text(
+                            _start == null || _effectiveEnd == null
+                                ? 'No dates selected'
+                                : AppDateUtils.formatDateRange(_start!, _effectiveEnd!),
+                          ),
+                        ),
+                        Chip(
+                          avatar: const Icon(Icons.timelapse, size: 18),
+                          label: Text(
+                            _totalDays == null
+                                ? 'Total: -'
+                                : 'Total: $_totalDays day${_totalDays! > 1 ? 's' : ''}',
                           ),
                         ),
                       ],
                     ),
                   ],
-                ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 24),
-          PrimaryButton(
-            label: submit.isLoading ? 'Submitting…' : 'Submit request',
-            onPressed: !canSubmit
-                ? null
-                : () async {
-                    final end = _effectiveEnd!;
-                    final total = _totalDays!;
-                    final leaveType = _leaveType!;
 
-                    final check = LeaveValidators.validate(
-                      leaveType: leaveType,
-                      start: _start,
-                      end: end,
-                      remainingDaysThisYear: _remainingDays(ref),
-                    );
-                    if (!check.isValid) {
-                      _showValidationError(check.message!);
-                      return;
-                    }
+            const SizedBox(height: 28),
 
-                    final ok = await showDialog<bool>(
-                      context: context,
-                      builder: (context) {
-                        return AlertDialog(
-                          title: const Text('Confirm submission'),
+            // Form Fields
+            Text(
+              'Leave Details',
+              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 16),
+
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Leave Type
+                    DropdownButtonFormField<LeaveType>(
+                      value: _leaveType,
+                      hint: const Text('Select leave type'),
+                      decoration: InputDecoration(
+                        labelText: 'Leave Type *',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      items: LeaveType.values
+                          .map((t) => DropdownMenuItem(value: t, child: Text(t.displayLabel)))
+                          .toList(),
+                      onChanged: submit.isLoading
+                          ? null
+                          : (v) => setState(() => _leaveType = v),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // One Day Switch
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('One-day leave'),
+                      subtitle: const Text('Start and end date will be the same'),
+                      value: _oneDay,
+                      onChanged: submit.isLoading
+                          ? null
+                          : (v) {
+                              setState(() {
+                                _oneDay = v;
+                                if (v && _start != null) _end = _start;
+                              });
+                            },
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Dates
+                    _buildDateTile(
+                      title: 'Start Date',
+                      value: _start,
+                      onTap: submit.isLoading ? null : () => _pickDate(start: true),
+                    ),
+
+                    if (!_oneDay) ...[
+                      const SizedBox(height: 12),
+                      _buildDateTile(
+                        title: 'End Date',
+                        value: _effectiveEnd,
+                        onTap: submit.isLoading ? null : () => _pickDate(start: false),
+                      ),
+                    ],
+
+                    if (_leaveType != null && remaining != null) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primaryContainer.withAlpha(40),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'Remaining balance this year: $remaining day(s)',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 24),
+
+                    // Reason
+                    TextField(
+                      controller: _commentController,
+                      maxLines: 4,
+                      enabled: !submit.isLoading,
+                      decoration: InputDecoration(
+                        labelText: 'Reason / Comment (Optional)',
+                        hintText: 'Please explain the purpose of your leave...',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        alignLabelWithHint: true,
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Attachment
+                    OutlinedButton.icon(
+                      onPressed: submit.isLoading ? null : _pickAttachment,
+                      icon: const Icon(Icons.attach_file_rounded),
+                      label: Text(
+                        _pickedFileName ?? 'Attach supporting document (optional)',
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 54),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+
+                    if (_pickedFileName != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Chip(
+                          label: Text(_pickedFileName!),
+                          deleteIcon: const Icon(Icons.close),
+                          onDeleted: submit.isLoading
+                              ? null
+                              : () => setState(() {
+                                    _pickedFileName = null;
+                                    _pickedBytes = null;
+                                  }),
+                        ),
+                      ),
+
+                    // Validation Message
+                    if (!validation.isValid &&
+                        _leaveType != null &&
+                        (_start != null || _effectiveEnd != null))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.error_outline, color: colorScheme.error),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                validation.message!,
+                                style: TextStyle(color: colorScheme.error),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 40),
+
+            // Submit Button
+            PrimaryButton(
+              label: submit.isLoading ? 'Submitting...' : 'Submit Leave Request',
+              icon: Icons.send_rounded,
+              onPressed: !canSubmit
+                  ? null
+                  : () async {
+                      final end = _effectiveEnd!;
+                      final total = _totalDays!;
+                      final leaveType = _leaveType!;
+
+                      final check = LeaveValidators.validate(
+                        leaveType: leaveType,
+                        start: _start,
+                        end: end,
+                        remainingDaysThisYear: _remainingDays(ref),
+                      );
+                      if (!check.isValid) {
+                        _showValidationError(check.message!);
+                        return;
+                      }
+
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Confirm Submission'),
                           content: Text(
                             'Submit ${leaveType.displayLabel} from '
                             '${AppDateUtils.formatDate(_start!)} to '
                             '${AppDateUtils.formatDate(end)} '
-                            '($total day(s))?',
+                            '($total day${total > 1 ? 's' : ''})?',
                           ),
                           actions: [
                             TextButton(
@@ -497,15 +524,37 @@ class _ApplyLeavePageState extends ConsumerState<ApplyLeavePage> {
                               child: const Text('Confirm'),
                             ),
                           ],
-                        );
-                      },
-                    );
+                        ),
+                      );
 
-                    if (!mounted || ok != true) return;
-                    await _submit(end: end, totalDays: total);
-                  },
-          ),
-        ],
+                      if (!mounted || ok != true) return;
+                      await _submit(end: end, totalDays: total);
+                    },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateTile({
+    required String title,
+    required DateTime? value,
+    required VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: title,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          suffixIcon: const Icon(Icons.calendar_today_outlined),
+        ),
+        child: Text(
+          value != null ? AppDateUtils.formatDate(value) : 'Select date',
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
       ),
     );
   }

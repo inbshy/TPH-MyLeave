@@ -1,15 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:tph_myleave/core/config/env_config.dart';
 import 'package:tph_myleave/core/router/app_router.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await EnvConfig.load();
-  final supabaseUrl = EnvConfig.supabaseUrl;
-  final supabaseAnonKey = EnvConfig.supabaseAnonKey;
+  try {
+    await dotenv.load(fileName: 'test.env');
+  } catch (error) {
+    throw Exception(
+      'Unable to load test.env file. Create a `test.env` file in the project root '
+      'with SUPABASE_URL and SUPABASE_ANON_KEY.',
+    );
+  }
+
+  final supabaseUrl = dotenv.env['SUPABASE_URL'];
+  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
+
+  if (supabaseUrl == null || supabaseAnonKey == null) {
+    throw Exception(
+      'Missing required environment variables. Ensure `test.env` contains '
+      'SUPABASE_URL and SUPABASE_ANON_KEY.',
+    );
+  }
 
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
 

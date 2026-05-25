@@ -43,7 +43,7 @@ class _EditLeavePageState extends ConsumerState<EditLeavePage> {
     _oneDay = leave.dateStart.year == leave.dateEnd.year &&
         leave.dateStart.month == leave.dateEnd.month &&
         leave.dateStart.day == leave.dateEnd.day;
-    _commentController.text = leave.employeeComment;
+    _commentController.text = leave.employeeComment ?? '';
   }
 
   DateTime? get _effectiveEnd => _oneDay ? _start : _end;
@@ -57,8 +57,7 @@ class _EditLeavePageState extends ConsumerState<EditLeavePage> {
       dateEnd: LeaveValidators.dateOnly(_effectiveEnd!),
       leaveType: _leaveType!,
       employeeID: original.employeeID,
-      totalLeave:
-          LeaveRequest.calculateTotalLeave(_start!, _effectiveEnd!),
+      totalLeave: LeaveRequest.calculateTotalLeave(_start!, _effectiveEnd!),
       approveBy: original.approveBy,
       status: original.status,
       employeeComment: _commentController.text.trim(),
@@ -79,9 +78,14 @@ class _EditLeavePageState extends ConsumerState<EditLeavePage> {
   Widget build(BuildContext context) {
     final async = ref.watch(_leaveByIdProvider(widget.leaveId));
     final submit = ref.watch(leaveFormControllerProvider);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit leave request')),
+      appBar: AppBar(
+        title: const Text('Edit Leave Request'),
+        elevation: 0,
+      ),
       body: async.when(
         data: (leave) {
           if (leave == null) {
@@ -92,104 +96,213 @@ class _EditLeavePageState extends ConsumerState<EditLeavePage> {
               child: Text('Only pending requests can be edited.'),
             );
           }
+
           _initFrom(leave);
 
-          return ListView(
-            padding: const EdgeInsets.all(24),
-            children: [
-              DropdownButtonFormField<LeaveType>(
-                initialValue: _leaveType,
-                decoration: const InputDecoration(
-                  labelText: 'Leave type',
-                  border: OutlineInputBorder(),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Edit Leave Request',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                items: LeaveType.values
-                    .map(
-                      (t) => DropdownMenuItem(
-                        value: t,
-                        child: Text(t.displayLabel),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (v) => setState(() => _leaveType = v),
-              ),
-              const SizedBox(height: 12),
-              SwitchListTile(
-                title: const Text('One-day leave'),
-                value: _oneDay,
-                onChanged: (v) => setState(() {
-                  _oneDay = v;
-                  if (_oneDay && _start != null) _end = _start;
-                }),
-              ),
-              ListTile(
-                title: Text(
-                  _start == null
-                      ? 'Start date'
-                      : AppDateUtils.formatDate(_start!),
+                const SizedBox(height: 6),
+                Text(
+                  'Make changes to your pending request',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _start ?? DateTime.now(),
-                    firstDate: LeaveValidators.earliestLeaveDay(),
-                    lastDate: LeaveValidators.latestLeaveDay(),
-                  );
-                  if (picked != null) {
-                    setState(() {
-                      _start = picked;
-                      if (_oneDay) _end = picked;
-                    });
-                  }
-                },
-              ),
-              ListTile(
-                enabled: !_oneDay,
-                title: Text(
-                  _effectiveEnd == null
-                      ? 'End date'
-                      : AppDateUtils.formatDate(_effectiveEnd!),
+
+                const SizedBox(height: 32),
+
+                // Preview Card
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.edit_note, color: colorScheme.primary),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Current Request',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          leave.leaveType.displayLabel,
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          AppDateUtils.formatDateRange(leave.dateStart, leave.dateEnd),
+                          style: theme.textTheme.bodyLarge,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: _oneDay
-                    ? null
-                    : () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: _effectiveEnd ?? _start ?? DateTime.now(),
-                          firstDate: _start ?? LeaveValidators.earliestLeaveDay(),
-                          lastDate: LeaveValidators.latestLeaveDay(),
-                        );
-                        if (picked != null) setState(() => _end = picked);
-                      },
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _commentController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Comment',
-                  border: OutlineInputBorder(),
+
+                const SizedBox(height: 28),
+
+                // Edit Form
+                Text(
+                  'Update Details',
+                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
                 ),
-              ),
-              const SizedBox(height: 24),
-              PrimaryButton(
-                label: 'Save changes',
-                icon: Icons.save_outlined,
-                onPressed: submit.isLoading ? null : () => _save(leave),
-              ),
-            ],
+                const SizedBox(height: 16),
+
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        DropdownButtonFormField<LeaveType>(
+                          value: _leaveType,
+                          decoration: InputDecoration(
+                            labelText: 'Leave Type',
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          items: LeaveType.values
+                              .map((t) => DropdownMenuItem(
+                                    value: t,
+                                    child: Text(t.displayLabel),
+                                  ))
+                              .toList(),
+                          onChanged: (v) => setState(() => _leaveType = v),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('One-day leave'),
+                          subtitle: const Text('Start and end date will be the same'),
+                          value: _oneDay,
+                          onChanged: (v) => setState(() {
+                            _oneDay = v;
+                            if (v && _start != null) _end = _start;
+                          }),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        _buildDateTile(
+                          title: 'Start Date',
+                          value: _start,
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: _start ?? DateTime.now(),
+                              firstDate: LeaveValidators.earliestLeaveDay(),
+                              lastDate: LeaveValidators.latestLeaveDay(),
+                            );
+                            if (picked != null) {
+                              setState(() {
+                                _start = picked;
+                                if (_oneDay) _end = picked;
+                              });
+                            }
+                          },
+                        ),
+
+                        if (!_oneDay) ...[
+                          const SizedBox(height: 12),
+                          _buildDateTile(
+                            title: 'End Date',
+                            value: _effectiveEnd,
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _effectiveEnd ?? _start ?? DateTime.now(),
+                                firstDate: _start ?? LeaveValidators.earliestLeaveDay(),
+                                lastDate: LeaveValidators.latestLeaveDay(),
+                              );
+                              if (picked != null) {
+                                setState(() => _end = picked);
+                              }
+                            },
+                          ),
+                        ],
+
+                        const SizedBox(height: 24),
+
+                        TextField(
+                          controller: _commentController,
+                          maxLines: 4,
+                          decoration: InputDecoration(
+                            labelText: 'Reason / Comment',
+                            hintText: 'Update your reason if needed...',
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            alignLabelWithHint: true,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 40),
+
+                PrimaryButton(
+                  label: submit.isLoading ? 'Saving Changes...' : 'Save Changes',
+                  icon: Icons.save_rounded,
+                  onPressed: submit.isLoading ? null : () => _save(leave),
+                ),
+              ],
+            ),
           );
         },
-        loading: () => const AppLoadingIndicator(),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        loading: () => const AppLoadingIndicator(message: 'Loading request...'),
+        error: (e, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(40),
+            child: Text('Error: $e'),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateTile({
+    required String title,
+    required DateTime? value,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: title,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          suffixIcon: const Icon(Icons.calendar_today_outlined),
+        ),
+        child: Text(
+          value != null ? AppDateUtils.formatDate(value) : 'Select date',
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
       ),
     );
   }
 }
 
-final _leaveByIdProvider =
-    FutureProvider.family<LeaveRequest?, int>((ref, id) async {
+final _leaveByIdProvider = FutureProvider.family<LeaveRequest?, int>((ref, id) async {
   return ref.watch(leaveServiceProvider).fetchLeaveById(id);
 });
